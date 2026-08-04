@@ -1,0 +1,9 @@
+# No build step: this is a single static page plus one function.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    cache-control = "public, max-age=0, must-revalidate"

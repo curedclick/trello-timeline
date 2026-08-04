@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cured Click · Delivery Chart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12181f; --ink2:#3d4a57; --ink3:#71808e;
+  --paper:#f6f8fa; --panel:#fff;
+  --rule:#e2e8ee; --rule2:#c7d1db; --band:#f1f5f8;
+  --teal:#0e7c86; --teal-ink:#0a5c64; --teal-soft:#d8ecee;
+  --amber:#a2660a; --amber-soft:#faf0dc;
+  --red:#b3261e; --red-soft:#fbe6e4;
+  --lab-green:#2f7d4f; --lab-orange:#c2700e; --lab-blue:#2a5fa8; --lab-sky:#0e7c86; --lab-none:#8c99a6;
+  --row-h:34px; --grp-h:34px; --headtrack-h:96px; --labcol:270px;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  padding:22px clamp(14px,3vw,34px) 60px;
+}
+.wrap{max-width:1500px;margin:0 auto}
+
+/* ── masthead ─────────────────────────────────────────────── */
+.masthead{
+  display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;
+  padding-bottom:14px;border-bottom:2px solid var(--ink);
+}
+.eyebrow{
+  font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:4px;
+}
+.masthead h1{font-size:clamp(26px,3.6vw,40px);line-height:1;letter-spacing:-.025em;font-weight:600;margin:0}
+.goal{text-align:right;font-family:var(--mono)}
+.goal-label{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+.goal-days{font-size:34px;font-weight:600;line-height:1;letter-spacing:-.03em;color:var(--teal-ink);display:block}
+.goal-days.tight{color:var(--red)}
+.goal-date{font-size:12px;color:var(--ink2)}
+.goal-date input{
+  font:inherit;font-size:12px;border:1px solid var(--rule2);background:var(--panel);
+  border-radius:3px;padding:2px 5px;color:var(--ink);
+}
+
+/* ── vitals strip ─────────────────────────────────────────── */
+.vitals{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-top:0;background:var(--panel)}
+.vital{flex:1 1 118px;padding:10px 14px;border-right:1px solid var(--rule);min-width:0}
+.vital:last-child{border-right:0}
+.vital-n{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.1;letter-spacing:-.02em;display:block}
+.vital-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.vital.is-red .vital-n{color:var(--red)}
+.vital.is-amber .vital-n{color:var(--amber)}
+
+/* ── controls ─────────────────────────────────────────────── */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--rule2);border-radius:3px;overflow:hidden;background:var(--panel)}
+.seg button{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  border:0;background:transparent;color:var(--ink2);padding:6px 11px;cursor:pointer;
+  border-right:1px solid var(--rule);
+}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button:hover:not([aria-pressed="true"]){background:var(--band)}
+.status{
+  margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink3);
+  display:flex;align-items:center;gap:7px;
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink3);flex:none}
+.dot.live{background:var(--teal)}
+.dot.snap{background:var(--amber)}
+.status button{
+  font:inherit;text-transform:uppercase;letter-spacing:.08em;border:1px solid var(--rule2);
+  background:var(--panel);border-radius:3px;padding:4px 9px;cursor:pointer;color:var(--ink2);
+}
+.status button:hover{background:var(--band)}
+
+/* ── chart shell ──────────────────────────────────────────── */
+.chart{display:flex;border:1px solid var(--rule);background:var(--panel);position:relative}
+.col-lab{width:var(--labcol);flex:none;border-right:2px solid var(--ink);position:relative;z-index:3;background:var(--panel)}
+.lab-head{height:var(--headtrack-h);border-bottom:1px solid var(--rule2);display:flex;align-items:flex-end;padding:0 12px 8px}
+.lab-head span{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.col-track{flex:1;overflow-x:auto;overflow-y:hidden;min-width:0}
+.inner{position:relative}
+
+/* ruler */
+.ruler{height:26px;border-bottom:1px solid var(--rule);position:relative}
+.month{position:absolute;top:0;height:26px;border-left:1px solid var(--rule2);display:flex;align-items:center;padding-left:7px}
+.month span{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+.month.q-edge{border-left:2px solid var(--ink)}
+
+/* trace = signature element */
+.trace-wrap{height:70px;border-bottom:1px solid var(--rule2);position:relative}
+.trace{display:block}
+.trace-cap{
+  position:absolute;left:8px;top:6px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--ink3);pointer-events:none;
+}
+.peak{font-family:var(--mono);font-size:10px;font-weight:600;fill:var(--ink)}
+
+/* rows */
+.grp{
+  height:var(--grp-h);display:flex;align-items:center;gap:8px;padding:0 12px;
+  background:var(--band);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.grp-name{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.grp-n{font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.grp-track{height:var(--grp-h);background:var(--band);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.row{
+  height:var(--row-h);display:flex;align-items:center;gap:8px;padding:0 12px;
+  border-bottom:1px solid var(--rule);overflow:hidden;
+}
+.row-track{height:var(--row-h);border-bottom:1px solid var(--rule);position:relative}
+.row:hover,.row.hot{background:var(--teal-soft)}
+.row-track.hot{background:var(--teal-soft)}
+.swatch{width:3px;height:15px;flex:none;border-radius:1px;background:var(--lab-none)}
+.row-name{
+  font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-decoration:none;flex:1;min-width:0;
+}
+.row-name:hover{text-decoration:underline}
+.row-when{font-family:var(--mono);font-size:10px;color:var(--ink3);flex:none}
+.row-when.od{color:var(--red);font-weight:600}
+.row-when.soon{color:var(--amber);font-weight:600}
+
+/* week bands behind rows */
+.bands{position:absolute;inset:0;pointer-events:none;z-index:0}
+.band{position:absolute;top:0;bottom:0;background:var(--band);opacity:.55}
+.wk{position:absolute;top:0;bottom:0;width:1px;background:var(--rule)}
+.mo{position:absolute;top:0;bottom:0;width:1px;background:var(--rule2)}
+
+/* markers */
+.mk{
+  position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;
+  transform:rotate(45deg);background:var(--teal);border:1px solid var(--teal-ink);
+  cursor:pointer;z-index:2;
+}
+.mk:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.mk.od{background:var(--red);border-color:#8a1c16}
+.mk.soon{background:var(--amber);border-color:#7d4e07}
+.mk.done{background:var(--panel);border-color:var(--rule2)}
+.mk:hover{transform:rotate(45deg) scale(1.35)}
+.bar{
+  position:absolute;top:50%;height:11px;margin-top:-5.5px;background:var(--teal-soft);
+  border:1px solid var(--teal);border-radius:2px;z-index:1;
+}
+
+/* vertical lines */
+.vline{position:absolute;top:26px;bottom:0;width:1px;z-index:4;pointer-events:none}
+.vline.today{background:var(--red)}
+.vline.goal{background:var(--teal);width:0;border-left:2px dashed var(--teal)}
+.flag{
+  position:absolute;top:-25px;font-family:var(--mono);font-size:9.5px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:#fff;padding:2px 6px;white-space:nowrap;
+}
+.vline.today .flag{background:var(--red)}
+.vline.goal .flag{background:var(--teal);left:-2px}
+
+/* tooltip */
+.tip{
+  position:fixed;z-index:50;background:var(--ink);color:#fff;padding:9px 11px;max-width:290px;
+  border-radius:4px;pointer-events:none;opacity:0;transition:opacity .09s;font-size:12px;line-height:1.4;
+  box-shadow:0 6px 20px rgba(18,24,31,.28);
+}
+.tip.on{opacity:1}
+.tip-t{font-weight:600;margin-bottom:5px}
+.tip-m{font-family:var(--mono);font-size:10px;color:#9fb0bd;letter-spacing:.05em;text-transform:uppercase}
+
+/* undated */
+.undated{margin-top:20px;border:1px solid var(--rule);background:var(--panel)}
+.undated>summary{
+  padding:11px 14px;cursor:pointer;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--ink2);
+}
+.undated>summary:hover{background:var(--band)}
+.undated-body{border-top:1px solid var(--rule);padding:12px 14px}
+.undated-note{font-size:12.5px;color:var(--ink2);margin:0 0 10px;max-width:70ch}
+.ul-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 18px}
+.ul-item{display:flex;align-items:center;gap:7px;padding:3px 0;min-width:0}
+.ul-item a{font-size:12.5px;color:var(--ink);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ul-item a:hover{text-decoration:underline}
+.ul-list{font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none}
+.empty{padding:26px 14px;text-align:center;color:var(--ink3);font-size:13px}
+
+.foot{margin-top:18px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink3)}
+.foot a{color:var(--teal-ink)}
+
+@media (max-width:760px){
+  :root{--labcol:170px}
+  .row-when{display:none}
+  .goal{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+  .mk:hover{transform:rotate(45deg)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <span class="eyebrow">Cured Click · Trello board</span>
+      <h1>Delivery chart</h1>
+    </div>
+    <div class="goal">
+      <div class="goal-label">Quarter goal</div>
+      <span class="goal-days" id="goalDays">–</span>
+      <div class="goal-date">
+        <input type="date" id="goalInput" aria-label="Quarter goal date">
+      </div>
+    </div>
+  </header>
+
+  <section class="vitals" id="vitals"></section>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Date window">
+      <button data-win="quarter" aria-pressed="true">Quarter</button>
+      <button data-win="90" aria-pressed="false">Next 90d</button>
+      <button data-win="all" aria-pressed="false">All dated</button>
+    </div>
+    <div class="seg" role="group" aria-label="Grouping">
+      <button data-grp="list" aria-pressed="true">By status</button>
+      <button data-grp="label" aria-pressed="false">By stream</button>
+    </div>
+    <div class="seg" role="group" aria-label="Include completed">
+      <button data-done="off" aria-pressed="true">Open only</button>
+      <button data-done="on" aria-pressed="false">Incl. done</button>
+    </div>
+    <div class="status">
+      <span class="dot" id="dot"></span><span id="src">loading</span>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </div>
+
+  <div class="chart">
+    <div class="col-lab">
+      <div class="lab-head"><span>Card</span></div>
+      <div id="labs"></div>
+    </div>
+    <div class="col-track" id="scroller">
+      <div class="inner" id="inner">
+        <div class="ruler" id="ruler"></div>
+        <div class="trace-wrap">
+          <div class="trace-cap">Due-date load · cards per week</div>
+          <svg class="trace" id="trace" aria-hidden="true"></svg>
+        </div>
+        <div id="tracks"></div>
+      </div>
+    </div>
+  </div>
+
+  <details class="undated" id="undated"></details>
+
+  <p class="foot">Source: <a href="https://trello.com/b/AXZ7BiTv/cured-click" id="boardLink">Cured Click board</a> · diamonds are due dates, bars are start-to-due where a start date exists.</p>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script type="application/json" id="snapshot">{"board":"Cured Click","boardUrl":"https://trello.com/b/AXZ7BiTv/cured-click","capturedAt":"2026-08-04","cards":[{"id":"6a392dba89975028bc321062","name":"Tell patient to arrive on time","url":"https://trello.com/c/3iDMYePk/133-tell-patient-to-arrive-on-time","list":"Backlog","due":"2026-07-20T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a05d7f8058be65df7bd83e2","name":"Add sign ups to hubspot through api","url":"https://trello.com/c/c5ccFRbo/115-add-sign-ups-to-hubspot-through-api","list":"Backlog","due":"2026-07-31T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4672413de8b36b73daa821","name":"Order Cured Click Quarter Zip & T Shirts","url":"https://trello.com/c/BEnJiX97/161-order-cured-click-quarter-zip-t-shirts","list":"Backlog","due":"2026-08-31T13:17:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a01c560929563d6f1873990","name":"Implement SMS message scheduling","url":"https://trello.com/c/C0uOHlnj/113-implement-sms-message-scheduling","list":"Backlog","due":"2026-08-03T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3cfa7bc89608b5b291972f","name":"Add more information to alerts","url":"https://trello.com/c/bg3krk6Y/147-add-more-information-to-alerts","list":"Backlog","due":"2026-07-31T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69ef620fea608d79f193160b","name":"Contact PSL for MYS, Demo & Superdrug","url":"https://trello.com/c/ojuHGHFK/104-contact-psl-for-mys-demo-superdrug","list":"Backlog","due":"2026-08-17T14:03:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a269c0c7928b6bd2f14e386","name":"Onboarding email and verification email confirmation","url":"https://trello.com/c/cesPgiRd/120-onboarding-email-and-verification-email-confirmation","list":"Backlog","due":"2026-09-01T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a300d79cc823125a6aaa31d","name":"Add Pharmacy to Google Search Console on signup and request indexing","url":"https://trello.com/c/saGL498I/125-add-pharmacy-to-google-search-console-on-signup-and-request-indexing","list":"Backlog","due":"2026-09-01T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3bf9a0baad5890a4332322","name":"Reserve with Google Integration","url":"https://trello.com/c/HrAXHbW2/146-reserve-with-google-integration","list":"Backlog","due":"2026-09-07T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a54f49e16b5a10c9afc6557","name":"Discovery Session on Superdrug Beauty Card Integration","url":"https://trello.com/c/zYTgRPGj/173-discovery-session-on-superdrug-beauty-card-integration","list":"Backlog","due":"2026-09-30T08:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Marketing","color":"blue"}]},{"id":"6a467289b8799d0d2deb5457","name":"Superdrug Photoshoot","url":"https://trello.com/c/NnWWXUkd/162-superdrug-photoshoot","list":"Backlog","due":"2026-10-01T13:17:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a3d1a2723f8ad3fca187938","name":"Techscaler Grant - R&D","url":"https://trello.com/c/Eb7P4eJw/148-techscaler-grant-rd","list":"Backlog","due":null,"start":null,"labels":[]},{"id":"69c42fdf0465aa052b909f09","name":"Implement Marketing Page on Dashboard","url":"https://trello.com/c/nbjQ23JT/76-implement-marketing-page-on-dashboard","list":"Backlog","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69d77890f918a4872e98585f","name":"Documentation and Change Log section on new site","url":"https://trello.com/c/d7rFtARB/93-documentation-and-change-log-section-on-new-site","list":"Backlog","due":null,"start":null,"labels":[]},{"id":"6a4bb6f2bf13213ddc50fced","name":"60 sec Explainer Video for Cured Click Website","url":"https://trello.com/c/H5nvyHYC/167-60-sec-explainer-video-for-cured-click-website","list":"Backlog","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"69d78cba0d55f221f1a2c485","name":"Copy for footer CTA in booking page","url":"https://trello.com/c/kPLhhDU9/95-copy-for-footer-cta-in-booking-page","list":"Backlog","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"695ab0c209d0976c6d519738","name":"Explore Marketing Journey for Superdrug Customers","url":"https://trello.com/c/V4kqjS3Q/20-explore-marketing-journey-for-superdrug-customers","list":"Backlog","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"69aabfaa25da3017f90be590","name":"UI/UX audit - call with freelancer","url":"https://trello.com/c/Kbfnlg12/54-ui-ux-audit-call-with-freelancer","list":"Backlog","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a68996956410d8d1d64efb7","name":"Prevent Otitis Media Video Consultation","url":"https://trello.com/c/BvxXanil/179-prevent-otitis-media-video-consultation","list":"To Do","due":"2026-08-09T12:37:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a71dccbc5b27f5db5a6ce61","name":"Group Analytics page (pharmacy reporting) + weekly automated email","url":"https://trello.com/c/cFZhJnww/188-group-analytics-page-pharmacy-reporting-weekly-automated-email","list":"To Do","due":"2026-08-12T12:37:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a71dcc4f57d6e70172deb76","name":"Financial Reports page (dashboard) + weekly automated email","url":"https://trello.com/c/9tX8Blep/187-financial-reports-page-dashboard-weekly-automated-email","list":"To Do","due":"2026-08-12T12:37:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a71dcd02bab9b56b1b7b866","name":"Group Calendar page for group admins","url":"https://trello.com/c/EsxmOkSk/189-group-calendar-page-for-group-admins","list":"To Do","due":"2026-08-10T12:37:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a6b5d65208abe1a25597233","name":"Training Videos and Screenshots for Superdrug","url":"https://trello.com/c/YjCve6kP/184-training-videos-and-screenshots-for-superdrug","list":"To Do","due":"2026-08-14T08:30:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a6f97dbc9005d3e4258563a","name":"Convert Clinical Pathways into Form","url":"https://trello.com/c/0mqa8PRn/185-convert-clinical-pathways-into-form","list":"To Do","due":"2026-08-17T12:37:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4bb87a2793d1d8c10f53c2","name":"Stress Test Cured Click Platform","url":"https://trello.com/c/rf0N3kAg/168-stress-test-cured-click-platform","list":"To Do","due":"2026-08-21T14:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6975f6e4f830a303e3fadcee","name":"Workflow or Process Flow Diagram for Sales Enquiry (Enterprise, Independent)","url":"https://trello.com/c/pcM11tjX/35-workflow-or-process-flow-diagram-for-sales-enquiry-enterprise-independent","list":"To Do","due":"2026-08-07T14:03:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a4e6b9c1a0ba96cd5d5319e","name":"TopDesk Integration Flow for Support Tickets","url":"https://trello.com/c/AvFQkMa1/172-topdesk-integration-flow-for-support-tickets","list":"To Do","due":"2026-08-07T15:24:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a892813af3340cc5bf01e","name":"Data ingestion for stores","url":"https://trello.com/c/fRqKs25G/140-data-ingestion-for-stores","list":"To Do","due":"2026-08-07T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3d2cc91bfd7cb81232bf36","name":"Arrange MYS via third party (Arvin @ Pharmlogic)","url":"https://trello.com/c/lFOPpvZq/149-arrange-mys-via-third-party-arvin-pharmlogic","list":"To Do","due":"2026-08-10T13:12:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a3d2ef4ea2d8a5e7374ecc1","name":"Dry Run of Sales Enquiry","url":"https://trello.com/c/PBFL1koZ/151-dry-run-of-sales-enquiry","list":"To Do","due":"2026-08-28T08:30:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"697f54053f17395fcf98f02e","name":"Worldpay integration for superdrug","url":"https://trello.com/c/x70BsjEE/44-worldpay-integration-for-superdrug","list":"In Progress","due":"2026-08-07T08:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a6b4ec399ba4425c3bd9eb4","name":"Send proposed data ingestion/automation approach to Jemma Kendall.","url":"https://trello.com/c/s6PdHg1V/181-send-proposed-data-ingestion-automation-approach-to-jemma-kendall","list":"In Progress","due":"2026-08-04T13:16:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a892147fe987d5b9cab58","name":"Speak to Ross about reporting requirements","url":"https://trello.com/c/IAegS0YN/139-speak-to-ross-about-reporting-requirements","list":"In Progress","due":"2026-07-31T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a5e2cff220b80830de5b239","name":"Review Cured Click Blogs","url":"https://trello.com/c/ojnWxta0/177-review-cured-click-blogs","list":"In Progress","due":"2026-08-06T16:30:00.000Z","start":null,"labels":[{"name":"Clinical","color":"sky_dark"}]},{"id":"6a4d02ae406f82776ef50fd0","name":"Investigate New Prescriber Requirements for Pharmacy First England","url":"https://trello.com/c/GBkidc2C/169-investigate-new-prescriber-requirements-for-pharmacy-first-england","list":"In Progress","due":"2026-08-07T08:30:00.000Z","start":null,"labels":[{"name":"Clinical","color":"sky_dark"}]},{"id":"6a58ee3f5e87250c70240319","name":"Proposal for Aaqib","url":"https://trello.com/c/O0CZBww0/176-proposal-for-aaqib","list":"Review / Testing","due":"2026-08-07T08:30:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69cb67158e7ab457859c3822","name":"Legal review of Superdrug contract Q&A,Soha,Humayal","url":"https://trello.com/c/aF5RzeEK/85-legal-review-of-superdrug-contract-qasohahumayal","list":"Blocked / Waiting","due":"2026-08-14T16:30:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a6b4e7f7bad69ce5dff1493","name":"Setup and share CNAME config with Simon","url":"https://trello.com/c/bVrSWNS5/180-setup-and-share-cname-config-with-simon","list":"Done","due":"2026-08-04T08:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a6b4f60b7cdb52880d08a4b","name":"Setup and Provision help site for Cured Click","url":"https://trello.com/c/RXUcgKOF/183-setup-and-provision-help-site-for-cured-click","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a6b4f3eea7af556e7669ccf","name":"Setup payload Content Management System for help site","url":"https://trello.com/c/TECAm1Iw/182-setup-payload-content-management-system-for-help-site","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a88225f986c06e2af84b4","name":"Material for Ross to send to rest of Superdrug about benefit of Cured Click","url":"https://trello.com/c/U38xacdo/138-material-for-ross-to-send-to-rest-of-superdrug-about-benefit-of-cured-click","list":"Done","due":"2026-07-20T13:17:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a340a23ca9a20e11ad1d0e8","name":"Begin drafting the training approach (content, format, delivery) in collaboration with Ross","url":"https://trello.com/c/G6xCnFXr/128-begin-drafting-the-training-approach-content-format-delivery-in-collaboration-with-ross","list":"Done","due":"2026-07-20T13:17:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a478ac72a6f011e3761bce6","name":"Review SoW comments","url":"https://trello.com/c/SJTgjeP7/164-review-sow-comments","list":"Done","due":"2026-07-21T16:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Corporate","color":"orange"}]},{"id":"69693efe7977224debda0b33","name":"Email MYS for integration & follow up with Darryl","url":"https://trello.com/c/1ks6Kr4N/31-email-mys-for-integration-follow-up-with-darryl","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a340aa562c533430a534d6d","name":"Progress SSO setup discussions and technical requirements with Simon","url":"https://trello.com/c/smc7M2Zo/130-progress-sso-setup-discussions-and-technical-requirements-with-simon","list":"Done","due":"2026-07-17T08:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a55f9ec240a670120c91778","name":"Redesign Video Consultation View and Fix video bugs","url":"https://trello.com/c/PDFdxO4q/174-redesign-video-consultation-view-and-fix-video-bugs","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4e67395e27f9428261d1d0","name":"Add a status page for Cured Click","url":"https://trello.com/c/4C0goNhO/171-add-a-status-page-for-cured-click","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a8633caad947cde3f1d2d","name":"Process Flow Diagram and Test Scripts","url":"https://trello.com/c/Rn62laby/136-process-flow-diagram-and-test-scripts","list":"Done","due":"2026-07-10T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4bb60d72f42e4b29312951","name":"Make changes based on Cured Click Website Comments","url":"https://trello.com/c/ivqlZQTY/166-make-changes-based-on-cured-click-website-comments","list":"Done","due":"2026-07-10T14:00:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a4260a3084bb4c00a66dcfe","name":"Negotiate for Pentest (DigiF9, Breachlock, Cyberfort)","url":"https://trello.com/c/atAxPheF/156-negotiate-for-pentest-digif9-breachlock-cyberfort","list":"Done","due":"2026-07-06T13:12:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a4e53ff1fe2c724e7d328bb","name":"Convert Group Pharmacy Landing Page to Service Based","url":"https://trello.com/c/xAJ1zbey/170-convert-group-pharmacy-landing-page-to-service-based","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4659f3a6763aab7079ff78","name":"Make fulfilment optional or default to none","url":"https://trello.com/c/glJQCTSi/158-make-fulfilment-optional-or-default-to-none","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a87daf14e978056333c21","name":"Send Pentest SOW to Vicki","url":"https://trello.com/c/zmG0wEdT/137-send-pentest-sow-to-vicki","list":"Done","due":"2026-07-10T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a8da58822c36fb9ef1454","name":"Review Cured Click Website (copy, content etc.)","url":"https://trello.com/c/4dDMdSGB/144-review-cured-click-website-copy-content-etc","list":"Done","due":"2026-07-06T08:30:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a425f0d6966c3a0d8e1f6fc","name":"Allow rescheduling appointment from dashboard","url":"https://trello.com/c/8ObNUy2E/154-allow-rescheduling-appointment-from-dashboard","list":"Done","due":"2026-07-06T13:46:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4671254ce0c52bdb3834e8","name":"Arrange meeting with DigiF9","url":"https://trello.com/c/T7GRzG3U/160-arrange-meeting-with-digif9","list":"Done","due":"2026-07-03T15:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a46707674ad701d04f53db2","name":"Arrange meeting with Breachlock","url":"https://trello.com/c/8GDqILmW/159-arrange-meeting-with-breachlock","list":"Done","due":"2026-07-06T14:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69a065ab6deef9b126049c2c","name":"Arrange Pen Test with Third Party","url":"https://trello.com/c/ZBgIbK37/50-arrange-pen-test-with-third-party","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a465587d3bd44d4e92f31ff","name":"Fix waiting time bug for PFS Scotland Appointments","url":"https://trello.com/c/KXbuj7eV/157-fix-waiting-time-bug-for-pfs-scotland-appointments","list":"Done","due":"2026-07-02T20:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3931ffedb6425a633e5f51","name":"Review What-ifs for Superdrug Support","url":"https://trello.com/c/hjHODsmC/135-review-what-ifs-for-superdrug-support","list":"Done","due":"2026-07-01T13:17:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a3a8a17cddd554ef71e0e96","name":"Send Support categories to Chris","url":"https://trello.com/c/dE3fYybN/142-send-support-categories-to-chris","list":"Done","due":"2026-07-03T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a4230cd3512b253fc20c029","name":"Remove video consultation email for in-store appointments","url":"https://trello.com/c/PsLSajs7/153-remove-video-consultation-email-for-in-store-appointments","list":"Done","due":"2026-07-03T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a425f1ff4109b7f42ea33a0","name":"Implement \"Create appt.\" button on dashboard","url":"https://trello.com/c/RXvmmQiX/155-implement-create-appt-button-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3be3c9e53c80f28d24f774","name":"Make calendar views persist across sessions","url":"https://trello.com/c/QQ5Dws26/145-make-calendar-views-persist-across-sessions","list":"Done","due":"2026-07-01T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a392dc73209e41b6848a9f8","name":"Add no-show button to dashboard","url":"https://trello.com/c/hLKCDr29/134-add-no-show-button-to-dashboard","list":"Done","due":"2026-07-01T13:12:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a340a4052393bf621cdaa4a","name":"Provide access to the staging environment for Ross","url":"https://trello.com/c/baZhh9lJ/129-provide-access-to-the-staging-environment-for-ross","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a380d41331c89af66e32eab","name":"Load Superdrug Pharmacies into Staging Environment","url":"https://trello.com/c/KNP24o8K/131-load-superdrug-pharmacies-into-staging-environment","list":"Done","due":"2026-06-26T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"697f5482265a5f036a9fdc8a","name":"Contact Gulam Haider regarding NHS Integration","url":"https://trello.com/c/yxBfBNH0/46-contact-gulam-haider-regarding-nhs-integration","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6904e230bf2b7481e46ce802","name":"[ENG] Add patient consultation history module to pharmacist interface","url":"https://trello.com/c/PYztnuar/7-eng-add-patient-consultation-history-module-to-pharmacist-interface","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c42fd2610dfeab2c0e33cf","name":"Implement Patient Upload Functionality","url":"https://trello.com/c/fsZEMC50/75-implement-patient-upload-functionality","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69d656628e223aaf6c9dee90","name":"Add Guided Tutorial to Dashboard","url":"https://trello.com/c/vAx8nHSR/91-add-guided-tutorial-to-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a33fc3ccaca6af04abeef72","name":"Follow up Shilpa regarding no response from Kevin (Pharmoutcomes)","url":"https://trello.com/c/mvCrkuUA/126-follow-up-shilpa-regarding-no-response-from-kevin-pharmoutcomes","list":"Done","due":"2026-06-22T14:10:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a269bf856c41ac630a8c933","name":"Improve Notification reliability on dashboard","url":"https://trello.com/c/yEqyzvXx/119-improve-notification-reliability-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3a89afe5701cd40067245a","name":"Put in writing SMS costs","url":"https://trello.com/c/mQVhOFPf/141-put-in-writing-sms-costs","list":"Done","due":"2026-06-24T13:17:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69bc1177dc5f888968dc5a14","name":"Cured Click Website Refresh","url":"https://trello.com/c/pKMOfDpZ/60-cured-click-website-refresh","list":"Done","due":null,"start":null,"labels":[]},{"id":"6a3409c9590928627d1d9640","name":"Add Product Tour for app using driver.js","url":"https://trello.com/c/mOJVa5HH/127-add-product-tour-for-app-using-driverjs","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a05d73292f6c911531c0bbc","name":"Follow up with Kevin from Pharmoutcomes (Founder)","url":"https://trello.com/c/igQ2Zq8w/114-follow-up-with-kevin-from-pharmoutcomes-founder","list":"Done","due":"2026-06-01T14:16:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a26d04bf01fbc1ee9249ea7","name":"Follow up with IFG regarding Everest Pharmacy","url":"https://trello.com/c/eYthgnlG/121-follow-up-with-ifg-regarding-everest-pharmacy","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a10286749ac098fe0354608","name":"Add Cookie Compliance to Booking Page (c15t)","url":"https://trello.com/c/ilko3NBS/118-add-cookie-compliance-to-booking-page-c15t","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a2f18eb1ab4175962aa6829","name":"Email Frankley Pharmacy for website","url":"https://trello.com/c/2xymazdN/123-email-frankley-pharmacy-for-website","list":"Done","due":null,"start":null,"labels":[]},{"id":"695aafed3e562458c27752c9","name":"Roll out private services and booking page to KinWell Pharmacy","url":"https://trello.com/c/j8hmdBsf/19-roll-out-private-services-and-booking-page-to-kinwell-pharmacy","list":"Done","due":"2026-05-25T13:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Clinical","color":"sky_dark"}]},{"id":"6a0f133ea33554025fe13aed","name":"Book Demo with Jade Pharmacy","url":"https://trello.com/c/y4wFqVVM/116-book-demo-with-jade-pharmacy","list":"Done","due":null,"start":null,"labels":[]},{"id":"6a0f1484800dce3ec6142279","name":"Meeting with Pharmlogic re: Collab & MYS","url":"https://trello.com/c/bAB0D61m/117-meeting-with-pharmlogic-re-collab-mys","list":"Done","due":"2026-06-02T11:30:00.000Z","start":null,"labels":[]},{"id":"6a01bd596fb7ffcab34196cf","name":"Statements of Work & Platform Capabilities for Superdrug First Draft","url":"https://trello.com/c/IXqzfLNf/109-statements-of-work-platform-capabilities-for-superdrug-first-draft","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6904dfbe91aa3119667d2e3e","name":"Add disclaimer about session recording before camera/microphone activation","url":"https://trello.com/c/LNQ3sa6u/3-add-disclaimer-about-session-recording-before-camera-microphone-activation","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a01c540566fc614a20dec9d","name":"Implement Appointment Cancellation & Reschedule Flow","url":"https://trello.com/c/V6qYIGKN/112-implement-appointment-cancellation-reschedule-flow","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69ff09bc1436e8c43a4dd605","name":"Arrange quarterly Board Meeting","url":"https://trello.com/c/dPVlDYc9/108-arrange-quarterly-board-meeting","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69e6286e09105aa726e1165a","name":"TITAN contact from Bilal from Meditech","url":"https://trello.com/c/4X7oi4IK/97-titan-contact-from-bilal-from-meditech","list":"Done","due":null,"start":null,"labels":[]},{"id":"69c14cad442d336f227a7344","name":"VAT rules","url":"https://trello.com/c/0IWagSF9/68-vat-rules","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69fc9c4eeb812e67d5ce288c","name":"Respond to Jacqueline regarding bandwidth requirements","url":"https://trello.com/c/XBHVTMwX/106-respond-to-jacqueline-regarding-bandwidth-requirements","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69d63bf54f3be1bf7c359d8b","name":"Implement Stripe Payments Integration","url":"https://trello.com/c/5SiXBKTL/90-implement-stripe-payments-integration","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a01be11e7b4cdd779ba46ab","name":"Migrate Store Finder to PostGIS","url":"https://trello.com/c/w35soWSQ/111-migrate-store-finder-to-postgis","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"695aafb0cd88729cde750e8e","name":"Review Booking App Journey & SEO","url":"https://trello.com/c/xxKYPQcC/18-review-booking-app-journey-seo","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Marketing","color":"blue"}]},{"id":"69e62859fa8461666067330e","name":"Pharmoutcomes Intro & TITAN intro from shilpa","url":"https://trello.com/c/Ep3TjRbC/96-pharmoutcomes-intro-titan-intro-from-shilpa","list":"Done","due":"2026-05-11T13:15:00.000Z","start":null,"labels":[]},{"id":"69ef15c584a6b9090839fe85","name":"Digital Pharmacy 1st Project - support service request process","url":"https://trello.com/c/xH06K0c5/103-digital-pharmacy-1st-project-support-service-request-process","list":"Done","due":null,"start":null,"labels":[]},{"id":"69fc9e2a9caedd5446a304a7","name":"Kick off meeting with Superdrug","url":"https://trello.com/c/v274JnnD/107-kick-off-meeting-with-superdrug","list":"Done","due":null,"start":null,"labels":[]},{"id":"69eb5bce5afa56c74f889834","name":"Onboarding Improvements","url":"https://trello.com/c/gnudw15e/100-onboarding-improvements","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69e78990ceb5f8e3591d0233","name":"Implement Group Admin Controls","url":"https://trello.com/c/hVteYMDw/98-implement-group-admin-controls","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69ef15b0fb369fec3ebb38c7","name":"Request for Demo","url":"https://trello.com/c/XlrNhnqI/101-request-for-demo","list":"Done","due":null,"start":null,"labels":[]},{"id":"69ac3f614495e9bd9e83cfa2","name":"Continue follow up with Superdrug Contract","url":"https://trello.com/c/nOyrxVCG/56-continue-follow-up-with-superdrug-contract","list":"Done","due":null,"start":null,"labels":[]},{"id":"69ca767860b2270a86612377","name":"Speak to MYS Engineers from LinkedIn","url":"https://trello.com/c/c00zh9vf/82-speak-to-mys-engineers-from-linkedin","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69ef15bd9240b0e908484c2b","name":"Digital Pharmacy 1st project - Request for indicative network and bandwidth requirements","url":"https://trello.com/c/a8yr517p/102-digital-pharmacy-1st-project-request-for-indicative-network-and-bandwidth-requirements","list":"Done","due":null,"start":null,"labels":[]},{"id":"69f89b6fe0e62ab88a1c33f4","name":"Obligation Table for Superdrug","url":"https://trello.com/c/SMAz8z5v/105-obligation-table-for-superdrug","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69ea258a46297a2d384ce834","name":"Worldpay Integration Meeting","url":"https://trello.com/c/MPx4Jmvf/99-worldpay-integration-meeting","list":"Done","due":"2026-04-29T13:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"697f54f3f4bb434afcb47c91","name":"Find contacts from LinkedIn for NHS MYS Integration","url":"https://trello.com/c/m2TFsyxv/47-find-contacts-from-linkedin-for-nhs-mys-integration","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69d63bd44d6070e2b59cc48d","name":"Implement Analytics Page","url":"https://trello.com/c/n9JA2Ifs/89-implement-analytics-page","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"697f56d8aa0b07657d8c4ef5","name":"Reach out to Jonny from Locate-a-Locum for MYS NHS Integration","url":"https://trello.com/c/EHFjkVhC/49-reach-out-to-jonny-from-locate-a-locum-for-mys-nhs-integration","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69ccf7726640297c6d32cc63","name":"Prepare Brief to present to Shilpa on meeting for MYS Integration","url":"https://trello.com/c/oiqQ44kj/86-prepare-brief-to-present-to-shilpa-on-meeting-for-mys-integration","list":"Done","due":"2026-04-08T14:06:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69ce76d02eed0ff45c589639","name":"Invitation: Cured Click Catch Up with Shilpa @ Thu Apr 9, 2026 2:30pm - 3pm (BST) (Fahed Arshad)","url":"https://trello.com/c/AXJLsJph/87-invitation-cured-click-catch-up-with-shilpa-thu-apr-9-2026-230pm-3pm-bst-fahed-arshad","list":"Done","due":"2026-04-09T13:30:00.000Z","start":null,"labels":[]},{"id":"69ce76e94feb19a5e36a71a4","name":"NDP/CuredClick meeting @ Wed April 8th 16:00","url":"https://trello.com/c/3rtcaFmK/88-ndp-curedclick-meeting-wed-april-8th-1600","list":"Done","due":"2026-04-08T15:00:00.000Z","start":null,"labels":[]},{"id":"69c430926cbba7875b743b92","name":"Build Consultation Page for Pharmacy First England","url":"https://trello.com/c/Vq7xFtXi/78-build-consultation-page-for-pharmacy-first-england","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6940ad5b2d8e7b9dfcaed35a","name":"Add postcode check prior to entering Video Room in video-platform app","url":"https://trello.com/c/GhfRSEPN/12-add-postcode-check-prior-to-entering-video-room-in-video-platform-app","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69693cdea4f2a088825e380e","name":"Automated WhatsApp for KinWell Pharmacy","url":"https://trello.com/c/y0KtOQew/30-automated-whatsapp-for-kinwell-pharmacy","list":"Backlog","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c430272fc1713c39f99d1a","name":"Implement Self-hosted Video Platform with LiveKit","url":"https://trello.com/c/CnYfKwAN/77-implement-self-hosted-video-platform-with-livekit","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c42fb2140665b516ce1bf9","name":"Implement Settings Page on Dashboard","url":"https://trello.com/c/gslgVh8k/74-implement-settings-page-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"695ab2a12f2f5e61d47e1aa7","name":"Meet with Shilpa Shah re: Contact for PharmOutcomes & Others","url":"https://trello.com/c/mQnPFHL9/22-meet-with-shilpa-shah-re-contact-for-pharmoutcomes-others","list":"Done","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"},{"name":"Corporate","color":"orange"}]},{"id":"69ca92211e04f01498ab85b7","name":"Implement PG-Boss for in-house queues for emails and sms","url":"https://trello.com/c/U0P7idi3/84-implement-pg-boss-for-in-house-queues-for-emails-and-sms","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6975f6c9e0f2b9f3b9d90384","name":"Implement Agenda view in dashboard","url":"https://trello.com/c/2D4LUQsk/34-implement-agenda-view-in-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c54c6e3ed63aeb3963fc22","name":"CTRL-7909 NDP Query: Access to API","url":"https://trello.com/c/uTqW0sCm/79-ctrl-7909-ndp-query-access-to-api","list":"Done","due":null,"start":null,"labels":[]},{"id":"69bc1128c610faa1c9461510","name":"Follow up NDP (Scotland) Email","url":"https://trello.com/c/CCwaDS8r/59-follow-up-ndp-scotland-email","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c54eb19a981b88499cea67","name":"Add logo upload option to onboarding","url":"https://trello.com/c/RCkffcRN/80-add-logo-upload-option-to-onboarding","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c42f98c64016702fb66ec0","name":"Implement Patients Page on Dashboard","url":"https://trello.com/c/fc64IRrg/73-implement-patients-page-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c42f81f8da490334429456","name":"Implement Services Page on Dashboard","url":"https://trello.com/c/bfVAg8gJ/72-implement-services-page-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"697938d23b5c3d90d531ac7d","name":"Deploy Booking App to AWS","url":"https://trello.com/c/bRqlUAnO/43-deploy-booking-app-to-aws","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c141591bf2f9af0349e786","name":"Deploy Dashboard App to AWS","url":"https://trello.com/c/50JXkFiL/66-deploy-dashboard-app-to-aws","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c1411fcceb586ce8b4c0a7","name":"Review Onboarding Journey","url":"https://trello.com/c/ZcatgKmo/64-review-onboarding-journey","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Marketing","color":"blue"}]},{"id":"69ca1b743170fd2521ff4c86","name":"Competitor research","url":"https://trello.com/c/k4xLe64k/83-competitor-research","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"69c54d71ce95bc91abb64ead","name":"Competitor research 1","url":"https://trello.com/c/a5kVqjjq/81-competitor-research-1","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"},{"name":"Marketing","color":"blue"}]},{"id":"69c3f47b5417d3386389dba5","name":"Replace Ably with Server Sent Events","url":"https://trello.com/c/Ou0ArKj2/71-replace-ably-with-server-sent-events","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c281031b43f8fb7f9c1343","name":"Implement saved views for Appointments page","url":"https://trello.com/c/Imal0TqO/69-implement-saved-views-for-appointments-page","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c14136321f8e16d3438746","name":"Review Consultation Page","url":"https://trello.com/c/Pb9heSp7/65-review-consultation-page","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Clinical","color":"sky_dark"}]},{"id":"69bff1a8455bd919bc12129b","name":"Build Consultation page for PF Scotland","url":"https://trello.com/c/4SgoNe3G/62-build-consultation-page-for-pf-scotland","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c1419066cdf5b8486446a7","name":"Build Consultation page for Private Services","url":"https://trello.com/c/iyB7Hj2b/67-build-consultation-page-for-private-services","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c140f8e951b69cf1a3fd7c","name":"Implement Kiosk view and login for new booking page","url":"https://trello.com/c/3eMWfTMK/63-implement-kiosk-view-and-login-for-new-booking-page","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69c3a47f46c8535d6611a5c0","name":"Implement dynamic robots.txt, sitemap.xml and llms.txt to improve Google Rankings","url":"https://trello.com/c/Mf4nGFhb/70-implement-dynamic-robotstxt-sitemapxml-and-llmstxt-to-improve-google-rankings","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69bfe6e2f5751ec2035549c4","name":"Add business hour editing on dashboard","url":"https://trello.com/c/Tl4YlnV8/61-add-business-hour-editing-on-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"697780f57f38b3bdd9428268","name":"Implement onboarding for Independent customers","url":"https://trello.com/c/W0T9V8Ej/36-implement-onboarding-for-independent-customers","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"695ab5c22459788c1235c7a8","name":"Explore PharmDoctor Customer Journey for Private Services","url":"https://trello.com/c/9aMkNrA6/24-explore-pharmdoctor-customer-journey-for-private-services","list":"Backlog","due":null,"start":null,"labels":[{"name":"Marketing","color":"blue"},{"name":"Engineering","color":"green"}]},{"id":"6a5e2eac47c446890d41f75b","name":"Events for 2027","url":"https://trello.com/c/c2PXIhkt/178-events-for-2027","list":"Backlog","due":"2026-07-22T13:17:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a3d2e345bf2d9b940bb1fef","name":"Public Relation Press Release Strategy Doc 1st Draft","url":"https://trello.com/c/5eVl4JTR/150-public-relation-press-release-strategy-doc-1st-draft","list":"To Do","due":"2026-08-28T08:30:00.000Z","start":null,"labels":[{"name":"Marketing","color":"blue"}]},{"id":"6a58dcf304ba2b23f9a650a3","name":"Prepare for PenTest - Run Claude independent audit","url":"https://trello.com/c/ujqTp1r1/175-prepare-for-pentest-run-claude-independent-audit","list":"To Do","due":null,"start":null,"labels":[]},{"id":"6a46770caf71cfd92ce3044d","name":"Claude Onboarding Doc","url":"https://trello.com/c/RusFDDRW/163-claude-onboarding-doc","list":"To Do","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a3d35031081abfd238166e7","name":"Thanks & Acknlowdgements Superdrug - Jacqueline, Ross, Amit etc.","url":"https://trello.com/c/VUMNqx8v/152-thanks-acknlowdgements-superdrug-jacqueline-ross-amit-etc","list":"To Do","due":"2026-09-01T14:03:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"6a3a8d92f85ea1938543c42e","name":"Fix Hubspot Contact form on Cured Click Website","url":"https://trello.com/c/I7LhxghQ/143-fix-hubspot-contact-form-on-cured-click-website","list":"Review / Testing","due":"2026-08-03T08:30:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6a392d6237919a465cff4503","name":"Automatically reroute customers to closest pharmacy if pharmacist unavailable","url":"https://trello.com/c/nSLJ9r2e/132-automatically-reroute-customers-to-closest-pharmacy-if-pharmacist-unavailable","list":"Review / Testing","due":"2026-07-24T12:27:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69b6e55c4e067149cb4c971e","name":"Migrate from Material-UI to ShadCN for dashboard","url":"https://trello.com/c/zHPewPHw/58-migrate-from-material-ui-to-shadcn-for-dashboard","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69aac1e1ab6fbb80bc4d0dcf","name":"Provision Cured Click emails for Iftikar and Mohsin","url":"https://trello.com/c/xpajWf1H/55-provision-cured-click-emails-for-iftikar-and-mohsin","list":"Done","due":null,"start":null,"labels":[]},{"id":"69b287a4b9a1bd48d0f594a4","name":"Authentication Migration to Better-Auth","url":"https://trello.com/c/GnApw62V/57-authentication-migration-to-better-auth","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69a0667c5de406df04695918","name":"Provide Running Cost of the App","url":"https://trello.com/c/uSGS5ahU/53-provide-running-cost-of-the-app","list":"Done","due":null,"start":null,"labels":[]},{"id":"695ab30c0fbe592778db9768","name":"Find & meet with SaaS b2b marketing person","url":"https://trello.com/c/n0ygcqVD/23-find-meet-with-saas-b2b-marketing-person","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"},{"name":"Marketing","color":"blue"}]},{"id":"697790524faeba38d419a6e5","name":"DATAHUB ACCESS SUSPENDED Cured Click AC0000865877 *URGENT*","url":"https://trello.com/c/aM3WYAvW/52-datahub-access-suspended-cured-click-ac0000865877-urgent","list":"Done","due":null,"start":null,"labels":[]},{"id":"69891726beebb06630166c1d","name":"Superdrug Security Assessment - Documents/ information required","url":"https://trello.com/c/yB0HGyX8/51-superdrug-security-assessment-documents-information-required","list":"Done","due":null,"start":null,"labels":[]},{"id":"6978ac619347e8dad0bc7e7e","name":"Booking App Clean Up","url":"https://trello.com/c/C8nbhp2c/41-booking-app-clean-up","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6978c3b1846baef8ec5b4de2","name":"Fix issues from Pen Testing","url":"https://trello.com/c/TuMxwRhE/42-fix-issues-from-pen-testing","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6978aaf903c1604b2e062225","name":"Consolidate Apps (booking, dashboard, api, video-platform, docs)","url":"https://trello.com/c/O8fywNwY/40-consolidate-apps-booking-dashboard-api-video-platform-docs","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6977856394e6c2c061cfaa9d","name":"[ENG] Add auth0 user authentication on API","url":"https://trello.com/c/sNgq899O/38-eng-add-auth0-user-authentication-on-api","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"6977858141bf95f9971daace","name":"[ENG] Add machine-to-machine authentication to API","url":"https://trello.com/c/Id34CJwp/39-eng-add-machine-to-machine-authentication-to-api","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"696ff0552e597aa78d9c9520","name":"[ENG] Implement Audit Logging","url":"https://trello.com/c/cgLUqHer/33-eng-implement-audit-logging","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"695e241be341ca56c0fa3860","name":"OVERDUE invoice for Cured Click AC0000865877","url":"https://trello.com/c/HgmGuhkP/26-overdue-invoice-for-cured-click-ac0000865877","list":"Done","due":null,"start":null,"labels":[]},{"id":"69778108939635836bc4cb66","name":"[ENG] Clean up unused API modules","url":"https://trello.com/c/Bo4xzfoq/37-eng-clean-up-unused-api-modules","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"69404c4d9b29168d30d24dc6","name":"[ENG] Platform Robustness","url":"https://trello.com/c/f2f2qi1P/8-eng-platform-robustness","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"695e2258754be8b8ccefa371","name":"Notice of a potential fine from the Information Commissioner's Office ICO:00012727833","url":"https://trello.com/c/n7m9GoXM/27-notice-of-a-potential-fine-from-the-information-commissioners-office-ico00012727833","list":"Done","due":null,"start":null,"labels":[]},{"id":"695e220d48b8f7e65ecb6913","name":"Agency Account Services (MHRA Devices) - Registration Renewal Reminder. [Cured Click Ltd]","url":"https://trello.com/c/xoMgAzkW/28-agency-account-services-mhra-devices-registration-renewal-reminder-cured-click-ltd","list":"Done","due":"2026-01-16T18:20:00.000Z","start":null,"labels":[]},{"id":"695ab72b09d0976c6d577bfa","name":"Hasan & Fahed - New Cured Click website meeting","url":"https://trello.com/c/HnnTFywJ/25-hasan-fahed-new-cured-click-website-meeting","list":"Done","due":null,"start":null,"labels":[]},{"id":"695aa733cab719d9c261d409","name":"Reply to Request for product demo","url":"https://trello.com/c/EIu77ZdB/15-reply-to-request-for-product-demo","list":"Done","due":null,"start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"695aaee6cd40012ba670c097","name":"Prepare for Demo on 9th January","url":"https://trello.com/c/H7kC8g60/16-prepare-for-demo-on-9th-january","list":"Done","due":"2026-01-09T09:00:00.000Z","start":null,"labels":[{"name":"Corporate","color":"orange"}]},{"id":"694e2ee24e5fc6102d5dc6cc","name":"Respond to Pramod's Email","url":"https://trello.com/c/YeB82B2B/14-respond-to-pramods-email","list":"Done","due":null,"start":null,"labels":[]},{"id":"694e2ebe80470a60582a310f","name":"Respond to Jacqueline's Email","url":"https://trello.com/c/RIQMcACp/13-respond-to-jacquelines-email","list":"Done","due":null,"start":null,"labels":[]},{"id":"69404d0992700298ee0756df","name":"Cyber Essentials Assessment","url":"https://trello.com/c/PnEJrV8N/9-cyber-essentials-assessment","list":"Done","due":null,"start":null,"labels":[]},{"id":"69404da25c5ba36c310e6c05","name":"Answer Superdrug Jacqueline's Questions","url":"https://trello.com/c/61rELhqd/10-answer-superdrug-jacquelines-questions","list":"Done","due":null,"start":null,"labels":[]},{"id":"68ac4d3f8e487340e1db6930","name":"API key for all endpoints","url":"https://trello.com/c/1O7rnpVM/1-api-key-for-all-endpoints","list":"Done","due":null,"start":null,"labels":[]},{"id":"68ac4dc658494cf2278cc2ce","name":"Implement outcome flow","url":"https://trello.com/c/rWvTPkgL/2-implement-outcome-flow","list":"Done","due":null,"start":null,"labels":[]},{"id":"6904e1f784ad378fbc298111","name":"Share script implementation details and documentation","url":"https://trello.com/c/chBuagcN/4-share-script-implementation-details-and-documentation","list":"Done","due":null,"start":null,"labels":[]},{"id":"6904e208bf75140b940f21f3","name":"Provide requirements for Google Tag Manager integration","url":"https://trello.com/c/OBwcPowa/5-provide-requirements-for-google-tag-manager-integration","list":"Done","due":null,"start":null,"labels":[]},{"id":"6a478b5c84197c974c895c4a","name":"Respond to Ben on WP SoW","url":"https://trello.com/c/XqlVyIkA/165-respond-to-ben-on-wp-sow","list":"Done","due":null,"start":null,"labels":[{"name":"Engineering","color":"green"}]},{"id":"696817d20cc1e264d739b4e4","name":"Superdrug Security Assessment - Documents/ information required","url":"https://trello.com/c/Bw1cFdmN/29-superdrug-security-assessment-documents-information-required","list":"Done","due":"2026-01-15T23:00:00.000Z","start":null,"labels":[{"name":"Engineering","color":"green"},{"name":"Corporate","color":"orange"}]}]}</script>
+<script>
+/* ══ config ═══════════════════════════════════════════════════
+   Set your quarter goal date here. It is also editable in the UI. */
+const CONFIG = {
+  goalDate:  "2026-09-30",
+  goalName:  "Q3 goal",
+  quarterStart: "2026-07-01",
+  quarterEnd:   "2026-09-30",
+  pxPerDay: 15
+};
+/* ═════════════════════════════════════════════════════════════ */
+
+const LIST_ORDER = ["In Progress","Review / Testing","Blocked / Waiting","To Do","Backlog","Done","Other"];
+const LABEL_HEX = {green:"var(--lab-green)",orange:"var(--lab-orange)",blue:"var(--lab-blue)",sky_dark:"var(--lab-sky)",sky:"var(--lab-sky)"};
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAY = 864e5;
+
+let CARDS = [], SRC = "snapshot", CAPTURED = "";
+let win = "quarter", grp = "list", showDone = false;
+
+const $ = id => document.getElementById(id);
+const d0 = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const today = d0(new Date());
+const parseDay = s => s ? d0(new Date(s)) : null;
+const days = (a,b) => Math.round((d0(b) - d0(a)) / DAY);
+const fmt = d => `${String(d.getDate()).padStart(2,"0")} ${MONTHS[d.getMonth()]}`;
+const goal = () => d0(new Date($("goalInput").value || CONFIG.goalDate));
+
+/* ── load ──────────────────────────────────────────────────── */
+function normalise(raw){
+  return raw.map(c => ({
+    id:c.id, name:c.name, url:c.url,
+    list:c.list || "Other",
+    due:parseDay(c.due), start:parseDay(c.start),
+    labels:c.labels || []
+  }));
+}
+function loadSnapshot(){
+  const s = JSON.parse($("snapshot").textContent);
+  CARDS = normalise(s.cards); CAPTURED = s.capturedAt || ""; SRC = "snapshot";
+  if (s.boardUrl) $("boardLink").href = s.boardUrl;
+}
+async function loadLive(){
+  const r = await fetch("/.netlify/functions/board", {cache:"no-store"});
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!Array.isArray(j.cards)) throw new Error("bad payload");
+  CARDS = normalise(j.cards); SRC = "live"; CAPTURED = "";
+}
+async function boot(){
+  loadSnapshot();
+  try { await loadLive(); } catch(e) { /* stay on snapshot */ }
+  paintStatus(); render();
+}
+function paintStatus(){
+  const live = SRC === "live";
+  $("dot").className = "dot " + (live ? "live" : "snap");
+  $("src").textContent = live
+    ? "live from Trello"
+    : (CAPTURED ? "snapshot " + CAPTURED + " · add credentials for live" : "snapshot");
+}
+
+/* ── selection ─────────────────────────────────────────────── */
+const isDone = c => c.list === "Done";
+function windowRange(){
+  const dated = CARDS.filter(c => c.due);
+  if (win === "quarter") return [d0(new Date(CONFIG.quarterStart)), d0(new Date(CONFIG.quarterEnd))];
+  if (win === "90") return [new Date(+today - 7*DAY), new Date(+today + 90*DAY)];
+  if (!dated.length) return [today, new Date(+today + 30*DAY)];
+  const ds = dated.map(c => +c.due);
+  return [new Date(Math.min(...ds) - 5*DAY), new Date(Math.max(...ds) + 5*DAY)];
+}
+function visible([a,b]){
+  return CARDS.filter(c =>
+    c.due && c.due >= a && c.due <= b && (showDone || !isDone(c))
+  ).sort((x,y) => x.due - y.due);
+}
+function groupsOf(cards){
+  const m = new Map();
+  for (const c of cards){
+    const keys = grp === "list"
+      ? [c.list]
+      : (c.labels.length ? c.labels.map(l => l.name) : ["Unlabelled"]);
+    for (const k of keys) (m.get(k) || m.set(k,[]).get(k)).push(c);
+  }
+  const keys = [...m.keys()].sort((a,b) => grp === "list"
+    ? LIST_ORDER.indexOf(a) - LIST_ORDER.indexOf(b)
+    : m.get(b).length - m.get(a).length);
+  return keys.map(k => [k, m.get(k)]);
+}
+const swatchOf = c => c.labels.length ? (LABEL_HEX[c.labels[0].color] || "var(--lab-none)") : "var(--lab-none)";
+function urgency(c){
+  if (isDone(c)) return "done";
+  const n = days(today, c.due);
+  return n < 0 ? "od" : n <= 7 ? "soon" : "";
+}
+function whenText(c){
+  const n = days(today, c.due);
+  if (isDone(c)) return fmt(c.due);
+  if (n < 0) return `${-n}d over`;
+  if (n === 0) return "today";
+  return `${n}d`;
+}
+
+/* ── vitals ────────────────────────────────────────────────── */
+function renderVitals(){
+  const open = CARDS.filter(c => !isDone(c));
+  const dated = open.filter(c => c.due);
+  const g = goal();
+  const cells = [
+    ["open cards", open.length, ""],
+    ["overdue", dated.filter(c => c.due < today).length, "is-red"],
+    ["due in 7 days", dated.filter(c => c.due >= today && days(today,c.due) <= 7).length, "is-amber"],
+    ["due by goal", dated.filter(c => c.due >= today && c.due <= g).length, ""],
+    ["no due date", open.length - dated.length, ""],
+    ["shipped", CARDS.filter(isDone).length, ""]
+  ];
+  $("vitals").innerHTML = cells.map(([k,n,cls]) =>
+    `<div class="vital ${n ? cls : ""}"><span class="vital-n">${n}</span><span class="vital-k">${k}</span></div>`
+  ).join("");
+
+  const left = days(today, g);
+  const el = $("goalDays");
+  el.textContent = left < 0 ? `${-left}d past` : `${left}d`;
+  el.className = "goal-days" + (left <= 21 ? " tight" : "");
+}
+
+/* ── chart ─────────────────────────────────────────────────── */
+function render(){
+  renderVitals();
+  const [a,b] = windowRange();
+  const total = Math.max(days(a,b), 1);
+  const W = total * CONFIG.pxPerDay;
+  const x = d => days(a,d) * CONFIG.pxPerDay;
+  $("inner").style.width = W + "px";
+
+  const cards = visible([a,b]);
+
+  /* ruler */
+  let ruler = "";
+  const cur = new Date(a.getFullYear(), a.getMonth(), 1);
+  while (cur <= b){
+    const ms = new Date(cur), me = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
+    const s = Math.max(+ms, +a), e = Math.min(+me, +b);
+    if (e >= s){
+      const l = x(new Date(s)), w = x(new Date(e)) - l + CONFIG.pxPerDay;
+      const qEdge = ms.getMonth() % 3 === 0 && +ms >= +a;
+      ruler += `<div class="month${qEdge ? " q-edge" : ""}" style="left:${l}px;width:${w}px"><span>${MONTHS[ms.getMonth()]} ${String(ms.getFullYear()).slice(2)}</span></div>`;
+    }
+    cur.setMonth(cur.getMonth()+1);
+  }
+  $("ruler").innerHTML = ruler;
+
+  /* trace: weekly due-date load */
+  const wk0 = new Date(a); wk0.setDate(wk0.getDate() - ((wk0.getDay()+6) % 7));
+  const buckets = [];
+  for (let t = new Date(wk0); t <= b; t.setDate(t.getDate()+7)){
+    const s = new Date(t), e = new Date(+t + 7*DAY);
+    buckets.push({s, e, n: cards.filter(c => c.due >= s && c.due < e && !isDone(c)).length});
+  }
+  const peak = Math.max(1, ...buckets.map(k => k.n));
+  const H = 70, pad = 12, base = H - 8;
+  const yOf = n => base - (n / peak) * (base - pad);
+  let path = `M0,${base}`;
+  buckets.forEach(k => {
+    const x1 = Math.max(0, x(k.s)), x2 = Math.min(W, x(k.e));
+    path += ` L${x1},${yOf(k.n)} L${x2},${yOf(k.n)}`;
+  });
+  path += ` L${W},${base} Z`;
+  const top = buckets.reduce((m,k) => k.n > m.n ? k : m, buckets[0] || {n:0});
+  const labels = buckets.filter(k => k.n > 0).map(k =>
+    `<text class="peak" x="${Math.max(0,x(k.s)) + 5}" y="${yOf(k.n) - 5}">${k.n}</text>`).join("");
+  $("trace").setAttribute("viewBox", `0 0 ${W} ${H}`);
+  $("trace").setAttribute("width", W); $("trace").setAttribute("height", H);
+  $("trace").innerHTML =
+    `<path d="${path}" fill="var(--teal-soft)" stroke="var(--teal)" stroke-width="1.5"/>
+     <line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="var(--rule2)" stroke-width="1"/>${labels}`;
+
+  /* rows */
+  if (!cards.length){
+    $("labs").innerHTML = `<div class="empty">No cards with due dates in this window.</div>`;
+    $("tracks").innerHTML = "";
+  } else {
+    let labs = "", trks = "";
+    const gridFor = () => {
+      let g = `<div class="bands">`;
+      for (let t = new Date(wk0); t <= b; t.setDate(t.getDate()+7)){
+        const l = x(new Date(t));
+        if (l >= 0) g += `<div class="wk" style="left:${l}px"></div>`;
+      }
+      const m = new Date(a.getFullYear(), a.getMonth()+1, 1);
+      while (m <= b){ g += `<div class="mo" style="left:${x(m)}px"></div>`; m.setMonth(m.getMonth()+1); }
+      return g + `</div>`;
+    };
+    for (const [name, list] of groupsOf(cards)){
+      labs += `<div class="grp"><span class="grp-name">${esc(name)}</span><span class="grp-n">${list.length}</span></div>`;
+      trks += `<div class="grp-track"></div>`;
+      list.forEach(c => {
+        const u = urgency(c);
+        labs += `<div class="row" data-id="${c.id}">
+          <span class="swatch" style="background:${swatchOf(c)}"></span>
+          <a class="row-name" href="${c.url}" target="_blank" rel="noopener">${esc(c.name)}</a>
+          <span class="row-when ${u}">${whenText(c)}</span></div>`;
+        const bar = c.start && c.start < c.due
+          ? `<div class="bar" style="left:${x(c.start)}px;width:${Math.max(4, x(c.due)-x(c.start))}px"></div>` : "";
+        trks += `<div class="row-track" data-id="${c.id}">${gridFor()}${bar}
+          <a class="mk ${u}" style="left:${x(c.due)}px" href="${c.url}" target="_blank" rel="noopener"
+             data-id="${c.id}" aria-label="${esc(c.name)}, due ${fmt(c.due)}"></a></div>`;
+      });
+    }
+    $("labs").innerHTML = labs;
+    $("tracks").innerHTML = trks;
+  }
+
+  /* today + goal lines */
+  $("inner").querySelectorAll(".vline").forEach(n => n.remove());
+  const line = (d, cls, text) => {
+    if (d < a || d > b) return;
+    const el = document.createElement("div");
+    el.className = "vline " + cls;
+    el.style.left = x(d) + "px";
+    el.innerHTML = `<span class="flag">${text}</span>`;
+    $("inner").appendChild(el);
+  };
+  line(goal(), "goal", CONFIG.goalName + " · " + fmt(goal()));
+  line(today, "today", "Today");
+
+  wireHover();
+  if (win !== "all") queueMicrotask(() => {
+    $("scroller").scrollLeft = Math.max(0, x(today) - 180);
+  });
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* ── hover linkage + tooltip ───────────────────────────────── */
+function wireHover(){
+  const tip = $("tip");
+  const pair = id => [...document.querySelectorAll(`[data-id="${id}"]`)];
+  const on = (id, state) => pair(id).forEach(n => n.classList.toggle("hot", state));
+
+  document.querySelectorAll(".row,.row-track").forEach(n => {
+    n.addEventListener("mouseenter", () => on(n.dataset.id, true));
+    n.addEventListener("mouseleave", () => on(n.dataset.id, false));
+  });
+  document.querySelectorAll(".mk").forEach(n => {
+    const show = () => {
+      const c = CARDS.find(k => k.id === n.dataset.id); if (!c) return;
+      const n2 = days(today, c.due);
+      const state = isDone(c) ? "shipped"
+        : n2 < 0 ? `${-n2} days overdue`
+        : n2 === 0 ? "due today" : `${n2} days remaining`;
+      const streams = c.labels.map(l => l.name).join(" · ") || "no stream";
+      tip.innerHTML = `<div class="tip-t">${esc(c.name)}</div>
+        <div class="tip-m">${esc(c.list)} · ${streams}</div>
+        <div class="tip-m">due ${fmt(c.due)} · ${state}</div>`;
+      const r = n.getBoundingClientRect();
+      tip.classList.add("on");
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      tip.style.left = Math.min(Math.max(8, r.left + 6), innerWidth - w - 8) + "px";
+      tip.style.top = (r.top - h - 10 < 8 ? r.bottom + 10 : r.top - h - 10) + "px";
+    };
+    const hide = () => tip.classList.remove("on");
+    n.addEventListener("mouseenter", show);
+    n.addEventListener("focus", show);
+    n.addEventListener("mouseleave", hide);
+    n.addEventListener("blur", hide);
+  });
+}
+
+/* ── undated backlog ───────────────────────────────────────── */
+function renderUndated(){
+  const list = CARDS.filter(c => !c.due && !isDone(c))
+    .sort((a,b) => LIST_ORDER.indexOf(a.list) - LIST_ORDER.indexOf(b.list) || a.name.localeCompare(b.name));
+  $("undated").innerHTML =
+    `<summary>${list.length} open cards have no due date — invisible on the chart above</summary>
+     <div class="undated-body">
+       <p class="undated-note">A card only appears on the chart once it has a due date in Trello. Add dates to the ones that matter for the quarter goal and they will show up here on the next refresh.</p>
+       <div class="ul-grid">${list.map(c =>
+         `<div class="ul-item"><span class="swatch" style="background:${swatchOf(c)}"></span>
+          <a href="${c.url}" target="_blank" rel="noopener">${esc(c.name)}</a>
+          <span class="ul-list">${esc(c.list)}</span></div>`).join("")}</div>
+     </div>`;
+}
+
+/* ── controls ──────────────────────────────────────────────── */
+document.querySelectorAll(".seg").forEach(seg => {
+  seg.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    [...seg.children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    if (b.dataset.win) win = b.dataset.win;
+    if (b.dataset.grp) grp = b.dataset.grp;
+    if (b.dataset.done) showDone = b.dataset.done === "on";
+    render();
+  });
+});
+$("goalInput").value = CONFIG.goalDate;
+$("goalInput").addEventListener("change", render);
+$("refresh").addEventListener("click", async () => {
+  $("src").textContent = "refreshing";
+  try { await loadLive(); } catch(e) { loadSnapshot(); }
+  paintStatus(); render(); renderUndated();
+});
+
+boot().then(renderUndated);
+</script>
+</body>
+</html>
