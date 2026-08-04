@@ -2,7 +2,8 @@
 // The key and token stay in Netlify environment variables and are never sent
 // to the browser. The browser only ever sees the normalised card list below.
 
-const FIELDS = "name,url,due,start,idList,dueComplete,closed,labels";
+// cardRole must be requested explicitly or the separator filter below is a no-op.
+const FIELDS = "name,url,due,start,idList,dueComplete,closed,labels,cardRole";
 
 export default async () => {
   const { TRELLO_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID } = process.env;
@@ -38,6 +39,7 @@ export default async () => {
           list: listName.get(c.idList) || "Other",
           due: c.due || null,
           start: c.start || null,
+          dueComplete: !!c.dueComplete,
           labels: (c.labels || []).map(l => ({ name: l.name, color: l.color }))
         }))
     };

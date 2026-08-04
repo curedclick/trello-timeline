@@ -9,6 +9,7 @@ No build step, no framework, no dependencies. Two files do the work:
 | --- | --- |
 | `public/index.html` | The whole UI, plus a baked-in snapshot of the board so the page renders before credentials are wired up |
 | `netlify/functions/board.mjs` | Server-side proxy that calls Trello with your key and token and returns a normalised card list |
+| `netlify/functions/card.mjs` | The only endpoint that writes: pushes staged due-date changes back to Trello |
 
 The layout matters. `public/` is the publish directory and `netlify/functions/`
 sits outside it, so the function is bundled as a function instead of being
@@ -48,11 +49,34 @@ ever receives card names, lists, labels and dates.
    | `TRELLO_KEY` | Your API key |
    | `TRELLO_TOKEN` | Your API token |
    | `TRELLO_BOARD_ID` | `AXZ7BiTv` |
+   | `CC_WRITE_KEY` | *Optional.* A passphrase required for saving date changes |
 
    Get the key and token from <https://trello.com/power-ups/admin> — create a
    Power-Up, open the **API key** tab, copy the key, then use the *Token* link
    beside it to generate a token.
 4. Deploy. The status pill top-right should read **live from Trello**.
+
+The token needs **write** scope for drag-to-reschedule; read-only tokens will
+save nothing and report a 401 in the pending bar.
+
+## Rescheduling cards
+
+Drag a diamond along its row to move a due date, or focus it and use the arrow
+keys (Shift for a week at a time). Nothing reaches Trello until you press
+**Save to Trello** in the bar at the bottom, so a mis-drag costs nothing —
+**Discard** puts everything back. While an edit is staged the row is amber, a
+dashed ghost diamond marks where Trello still has the card, and rows hold their
+position so nothing jumps around under the cursor. Only the calendar day
+changes; each card keeps its original time of day.
+
+If a save partially fails, the cards that saved are committed and the ones that
+failed stay pending with the error shown — press Save again to retry just those.
+
+**`CC_WRITE_KEY` matters here.** Leave it unset and anyone who can reach
+`/.netlify/functions/card` can rewrite your board's due dates with no login.
+Set it and the browser asks once for the passphrase, then remembers it. Reads
+are unaffected either way. See *Lock the site down* below — that advice now
+covers writes, not just card names.
 
 ## Lock the site down
 
@@ -60,12 +84,14 @@ The chart exposes card names and your delivery dates, so do not leave it on a
 public URL. Either option is on the free tier:
 
 - **Netlify Identity** with invite-only registration, plus this in `netlify.toml`:
+
   ```toml
   [[headers]]
     for = "/*"
     [headers.values]
       x-robots-tag = "noindex"
   ```
+
 - Or leave the site as a **Deploy Preview only** and never publish to production.
 
 Password protection on a whole site is a paid feature, so Identity is the free
