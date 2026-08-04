@@ -1,7 +1,13 @@
-# No build step: this is a single static page plus one function.
+# Static files live in public/. The functions directory sits OUTSIDE it so that
+# board.mjs is bundled as a function rather than served as a static file.
 [build]
-  publish = "."
+  publish = "public"
   functions = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    x-robots-tag = "noindex, nofollow"
 
 [[headers]]
   for = "/index.html"
