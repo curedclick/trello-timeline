@@ -100,22 +100,36 @@ public URL. Either option is on the free tier:
 Password protection on a whole site is a paid feature, so Identity is the free
 route.
 
+## Goals live on the board, not in the code
+
+Make a list called **Goals** on the Trello board. Every card in it with a due
+date becomes a vertical line on the chart: the card's **name** labels the line,
+its **due date** places it. Goal cards are held back from the chart rows and
+from the vitals counts, so they never read as outstanding work.
+
+- The **next goal still ahead** drives the countdown in the masthead, and its
+  date is editable there — that edit stages like any other and saves with the
+  same button.
+- Give a goal card a **start date** as well and that start→due span becomes the
+  **Quarter** view's window. Handy for a quarter that does not line up with the
+  calendar. If several goals carry spans, the narrowest one containing today
+  wins.
+- With **no Goals list at all** the chart still works: it derives the end of the
+  calendar quarter containing today, labels it *Quarter end*, and says `auto` in
+  place of the date editor.
+
+The list is matched loosely — `Goals`, `🎯 Goals`, `Milestones` all work.
+
 ## Configure
 
-Near the top of the `<script>` block in `public/index.html`:
+One value, near the top of the `<script>` block in `public/index.html`:
 
 ```js
-const CONFIG = {
-  goalDate:     "2026-09-30",  // the quarter goal line
-  goalName:     "Q3 goal",
-  quarterStart: "2026-07-01",  // the "Quarter" window
-  quarterEnd:   "2026-09-30",
-  pxPerDay:     15             // raise for a wider, more spread-out chart
-};
+const CONFIG = { pxPerDay: 15 };  // raise for a wider, more spread-out chart
 ```
 
-The goal date is also editable in the page for a quick what-if. Editing `CONFIG`
-makes it the default.
+Everything else that used to live here — goal date, goal name, quarter start and
+end — now comes from the board or is derived from today's date.
 
 ## Refreshing the snapshot
 
