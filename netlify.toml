@@ -13,3 +13,8 @@
   for = "/index.html"
   [headers.values]
     cache-control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    cache-control = "public, max-age=604800"

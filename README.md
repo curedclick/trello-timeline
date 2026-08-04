@@ -19,6 +19,7 @@ repo-root/
 ├── netlify.toml
 ├── public/
 │   ├── index.html
+│   ├── favicon.ico
 │   └── snapshot.json
 └── netlify/
     └── functions/

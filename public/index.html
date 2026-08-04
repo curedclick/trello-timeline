@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cured Click · Delivery Chart</title>
+<link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -85,6 +86,17 @@ body{
 /* ── chart shell ──────────────────────────────────────────── */
 .chart{display:flex;border:1px solid var(--rule);background:var(--panel);position:relative}
 .col-lab{width:var(--labcol);flex:none;border-right:2px solid var(--ink);position:relative;z-index:3;background:var(--panel)}
+.grip{
+  position:absolute;top:0;bottom:0;right:-5px;width:11px;cursor:col-resize;z-index:6;
+  background:transparent;border:0;padding:0;
+}
+.grip::after{
+  content:"";position:absolute;top:0;bottom:0;left:4px;width:3px;background:var(--teal);
+  opacity:0;transition:opacity .12s;
+}
+.grip:hover::after,.grip:focus-visible::after,body.resizing .grip::after{opacity:1}
+.grip:focus-visible{outline:none}
+body.resizing{cursor:col-resize;user-select:none}
 .lab-head{height:var(--headtrack-h);border-bottom:1px solid var(--rule2);display:flex;align-items:flex-end;padding:0 12px 8px}
 .lab-head span{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
 .col-track{flex:1;overflow-x:auto;overflow-y:hidden;min-width:0}
@@ -151,6 +163,7 @@ body{
   position:absolute;top:50%;height:11px;margin-top:-5.5px;background:var(--teal-soft);
   border:1px solid var(--teal);border-radius:2px;z-index:1;
 }
+.bar.implied{background:transparent;border:1px dashed var(--rule2);height:9px;margin-top:-4.5px}
 
 /* vertical lines */
 .vline{position:absolute;top:26px;bottom:0;width:1px;z-index:4;pointer-events:none}
@@ -233,8 +246,8 @@ body{
       <button data-grp="label" aria-pressed="false">By stream</button>
     </div>
     <div class="seg" role="group" aria-label="Include completed">
-      <button data-done="off" aria-pressed="true">Open only</button>
-      <button data-done="on" aria-pressed="false">Incl. done</button>
+      <button data-done="off" aria-pressed="true">Hide done</button>
+      <button data-done="on" aria-pressed="false">Show done</button>
     </div>
     <div class="status">
       <span class="dot" id="dot"></span><span id="src">loading</span>
@@ -246,6 +259,7 @@ body{
     <div class="col-lab">
       <div class="lab-head"><span>Card</span></div>
       <div id="labs"></div>
+      <button class="grip" id="grip" type="button" aria-label="Resize card column — drag, or use arrow keys. Double-click to reset."></button>
     </div>
     <div class="col-track" id="scroller">
       <div class="inner" id="inner">
@@ -261,7 +275,7 @@ body{
 
   <details class="undated" id="undated"></details>
 
-  <p class="foot">Source: <a href="https://trello.com/b/AXZ7BiTv/cured-click" id="boardLink">Cured Click board</a> · diamonds are due dates, bars are start-to-due where a start date exists.</p>
+  <p class="foot">Source: <a href="https://trello.com/b/AXZ7BiTv/cured-click" id="boardLink">Cured Click board</a> · diamonds are due dates. Solid bars span a card's Trello start date to its due date; dashed bars span from today. Drag the divider beside the card column to widen it.</p>
 </div>
 
 <div class="tip" id="tip" role="tooltip"></div>
@@ -271,7 +285,7 @@ body{
 /* ══ config ═══════════════════════════════════════════════════
    Set your quarter goal date here. It is also editable in the UI. */
 const CONFIG = {
-  goalDate:  "2026-09-30",
+  goalDate:  "2026-10-01",
   goalName:  "Q3 goal",
   quarterStart: "2026-07-01",
   quarterEnd:   "2026-09-30",
@@ -279,7 +293,7 @@ const CONFIG = {
 };
 /* ═════════════════════════════════════════════════════════════ */
 
-const LIST_ORDER = ["In Progress","Review / Testing","Blocked / Waiting","To Do","Backlog","Done","Other"];
+const LIST_ORDER = ["In Progress","To Do","Review / Testing","Blocked / Waiting","Backlog","Other","Done"];
 const LABEL_HEX = {green:"var(--lab-green)",orange:"var(--lab-orange)",blue:"var(--lab-blue)",sky_dark:"var(--lab-sky)",sky:"var(--lab-sky)"};
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAY = 864e5;
@@ -331,6 +345,12 @@ function paintStatus(){
 
 /* ── selection ─────────────────────────────────────────────── */
 const isDone = c => c.list === "Done";
+/* Done always sinks to the bottom; unknown lists sit just above it. */
+const listRank = name => {
+  if (name === "Done") return 900;
+  const i = LIST_ORDER.indexOf(name);
+  return i === -1 ? 800 : i;
+};
 function windowRange(){
   const dated = CARDS.filter(c => c.due);
   if (win === "quarter") return [d0(new Date(CONFIG.quarterStart)), d0(new Date(CONFIG.quarterEnd))];
@@ -353,7 +373,7 @@ function groupsOf(cards){
     for (const k of keys) (m.get(k) || m.set(k,[]).get(k)).push(c);
   }
   const keys = [...m.keys()].sort((a,b) => grp === "list"
-    ? LIST_ORDER.indexOf(a) - LIST_ORDER.indexOf(b)
+    ? listRank(a) - listRank(b)
     : m.get(b).length - m.get(a).length);
   return keys.map(k => [k, m.get(k)]);
 }
@@ -468,10 +488,9 @@ function render(){
         const u = urgency(c);
         labs += `<div class="row" data-id="${c.id}">
           <span class="swatch" style="background:${swatchOf(c)}"></span>
-          <a class="row-name" href="${c.url}" target="_blank" rel="noopener">${esc(c.name)}</a>
+          <a class="row-name" href="${c.url}" target="_blank" rel="noopener" title="${esc(c.name)}">${esc(c.name)}</a>
           <span class="row-when ${u}">${whenText(c)}</span></div>`;
-        const bar = c.start && c.start < c.due
-          ? `<div class="bar" style="left:${x(c.start)}px;width:${Math.max(4, x(c.due)-x(c.start))}px"></div>` : "";
+        const bar = spanBar(c, x, a, b);
         trks += `<div class="row-track" data-id="${c.id}">${gridFor()}${bar}
           <a class="mk ${u}" style="left:${x(c.due)}px" href="${c.url}" target="_blank" rel="noopener"
              data-id="${c.id}" aria-label="${esc(c.name)}, due ${fmt(c.due)}"></a></div>`;
@@ -498,6 +517,19 @@ function render(){
   if (win !== "all") queueMicrotask(() => {
     $("scroller").scrollLeft = Math.max(0, x(today) - 180);
   });
+}
+
+/* Span behind a card: real start→due where Trello has a start date,
+   otherwise an implied today→due (or due→today when overdue). */
+function spanBar(c, x, a, b){
+  if (isDone(c)) return "";
+  const real = c.start && c.start < c.due;
+  const from = real ? c.start : today;
+  const [s,e] = from <= c.due ? [from, c.due] : [c.due, from];
+  const cs = Math.max(+s, +a), ce = Math.min(+e, +b);
+  if (ce <= cs) return "";
+  const l = x(new Date(cs)), w = Math.max(3, x(new Date(ce)) - l);
+  return `<div class="bar${real ? "" : " implied"}" style="left:${l}px;width:${w}px"></div>`;
 }
 
 const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -540,7 +572,7 @@ function wireHover(){
 /* ── undated backlog ───────────────────────────────────────── */
 function renderUndated(){
   const list = CARDS.filter(c => !c.due && !isDone(c))
-    .sort((a,b) => LIST_ORDER.indexOf(a.list) - LIST_ORDER.indexOf(b.list) || a.name.localeCompare(b.name));
+    .sort((a,b) => listRank(a.list) - listRank(b.list) || a.name.localeCompare(b.name));
   $("undated").innerHTML =
     `<summary>${list.length} open cards have no due date — invisible on the chart above</summary>
      <div class="undated-body">
@@ -563,6 +595,43 @@ document.querySelectorAll(".seg").forEach(seg => {
     render();
   });
 });
+/* ── resizable card column ─────────────────────────────────── */
+const LAB_MIN = 150, LAB_MAX = 900, LAB_KEY = "cc-labcol";
+function setLabCol(px){
+  const v = Math.round(Math.min(LAB_MAX, Math.max(LAB_MIN, px)));
+  document.documentElement.style.setProperty("--labcol", v + "px");
+  try { localStorage.setItem(LAB_KEY, v); } catch(e) {}
+}
+(function wireGrip(){
+  const grip = $("grip");
+  let saved = null;
+  try { saved = localStorage.getItem(LAB_KEY); } catch(e) {}
+  if (saved) setLabCol(+saved);
+
+  let x0 = 0, w0 = 0;
+  const move = e => setLabCol(w0 + (e.clientX - x0));
+  const up = () => {
+    document.body.classList.remove("resizing");
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+  };
+  grip.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    x0 = e.clientX;
+    w0 = document.querySelector(".col-lab").getBoundingClientRect().width;
+    document.body.classList.add("resizing");
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  });
+  grip.addEventListener("dblclick", () => setLabCol(270));
+  grip.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 40 : 12;
+    const w = document.querySelector(".col-lab").getBoundingClientRect().width;
+    if (e.key === "ArrowLeft") { setLabCol(w - step); e.preventDefault(); }
+    if (e.key === "ArrowRight") { setLabCol(w + step); e.preventDefault(); }
+  });
+})();
+
 $("goalInput").value = CONFIG.goalDate;
 $("goalInput").addEventListener("change", render);
 $("refresh").addEventListener("click", async () => {
