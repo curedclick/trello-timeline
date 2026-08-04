@@ -7,8 +7,23 @@ No build step, no framework, no dependencies. Two files do the work:
 
 | File | Job |
 | --- | --- |
-| `index.html` | The whole UI, plus a baked-in snapshot of the board so the page renders before credentials are wired up |
+| `public/index.html` | The whole UI, plus a baked-in snapshot of the board so the page renders before credentials are wired up |
 | `netlify/functions/board.mjs` | Server-side proxy that calls Trello with your key and token and returns a normalised card list |
+
+The layout matters. `public/` is the publish directory and `netlify/functions/`
+sits outside it, so the function is bundled as a function instead of being
+served as a static file. Keep `netlify.toml` at the repository root.
+
+```
+repo-root/
+├── netlify.toml
+├── public/
+│   ├── index.html
+│   └── snapshot.json
+└── netlify/
+    └── functions/
+        └── board.mjs
+```
 
 ## Why the function exists
 
@@ -24,7 +39,7 @@ ever receives card names, lists, labels and dates.
 
 1. Push this folder to a Git repo.
 2. In Netlify, **Add new site → Import an existing project**, pick the repo.
-   Leave the build command empty and the publish directory as `.`.
+   Leave the build command empty. `netlify.toml` sets the publish directory.
 3. **Site configuration → Environment variables**, add three:
 
    | Key | Value |
@@ -57,7 +72,7 @@ route.
 
 ## Configure
 
-Near the top of the `<script>` block in `index.html`:
+Near the top of the `<script>` block in `public/index.html`:
 
 ```js
 const CONFIG = {
