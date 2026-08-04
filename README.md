@@ -59,6 +59,9 @@ ever receives card names, lists, labels and dates.
 The token needs **write** scope for drag-to-reschedule; read-only tokens will
 save nothing and report a 401 in the pending bar.
 
+Both functions send `cache-control: no-store`, so **Refresh** always hits Trello
+and never reads an edge-cached copy.
+
 ## Rescheduling cards
 
 Drag a diamond along its row to move a due date, or focus it and use the arrow

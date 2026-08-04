@@ -382,7 +382,9 @@ function loadSnapshot(){
   if (s.boardUrl) $("boardLink").href = s.boardUrl;
 }
 async function loadLive(){
-  const r = await fetch("/.netlify/functions/board", {cache:"no-store"});
+  /* Unique URL as well as no-store: nothing between here and Trello — browser,
+     Netlify edge, corporate proxy — gets to answer with an older copy. */
+  const r = await fetch(`/.netlify/functions/board?t=${Date.now()}`, {cache:"no-store"});
   if (!r.ok) throw new Error("HTTP " + r.status);
   const j = await r.json();
   if (!Array.isArray(j.cards)) throw new Error("bad payload");

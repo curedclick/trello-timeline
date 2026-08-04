@@ -44,8 +44,9 @@ export default async () => {
         }))
     };
 
-    // Short cache so a page refresh is cheap but never more than a minute stale.
-    return json(payload, 200, { "cache-control": "public, max-age=60" });
+    // Never cached. Refresh must always show the board as it is right now, and
+    // an edge-cached copy would also let a just-saved edit read back stale.
+    return json(payload, 200, { "cache-control": "no-store" });
   } catch (err) {
     return json({ error: `Could not reach Trello: ${err.message}` }, 502);
   }
