@@ -61,13 +61,20 @@ body{
 }
 .goal-rail-item:hover{color:var(--ink)}
 .goal-rail-name{white-space:normal;max-width:240px}
+.goal-rail-date{color:var(--ink3);flex:none;white-space:nowrap}
 .goal-rail-days{font-weight:600;color:var(--ink3);min-width:2.6em;text-align:right;flex:none}
 .goal-rail-item.tight .goal-rail-days{color:var(--red)}
-.goal-rail-item.editing{cursor:default}
+.goal-rail-item.editing{cursor:default;gap:5px}
 .goal-rail-item input[type=date]{
   font:inherit;font-size:11px;border:1px solid var(--rule2);background:var(--panel);
   border-radius:3px;padding:1px 4px;color:var(--ink);
 }
+.goal-rail-cancel{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid var(--rule2);background:var(--panel);border-radius:3px;padding:2px 6px;
+  color:var(--ink2);cursor:pointer;
+}
+.goal-rail-cancel:hover{background:var(--band)}
 
 /* ── vitals strip ─────────────────────────────────────────── */
 .vitals{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-top:0;background:var(--panel)}
@@ -387,6 +394,9 @@ const today = d0(new Date());
 const parseDay = s => s ? d0(new Date(s)) : null;
 const days = (a,b) => Math.round((d0(b) - d0(a)) / DAY);
 const fmt = d => `${String(d.getDate()).padStart(2,"0")} ${MONTHS[d.getMonth()]}`;
+/* Goal dates stand alone away from the chart's own month/year ruler, so unlike
+   a card's row date they need the year spelled out to be unambiguous. */
+const fmtGoal = d => `${fmt(d)} ${d.getFullYear()}`;
 /* ── goals, read from the board's Goals list ───────────────────
    The counter tracks the next goal still ahead of us, falling back to the most
    recent one behind us, and to the end of the calendar quarter when the board
@@ -595,6 +605,7 @@ function renderGoalRail(gc){
     const label = left < 0 ? `${-left}d past` : left === 0 ? "today" : `${left}d`;
     return `<li class="goal-rail-item${left <= 21 ? " tight" : ""}" data-id="${m.id}">
       <span class="goal-rail-name" title="${esc(m.name)}">${esc(m.name)}</span>
+      <span class="goal-rail-date">${fmtGoal(m.due)}</span>
       <span class="goal-rail-days">${label}</span>
     </li>`;
   }).join("");
@@ -721,8 +732,8 @@ function render(){
   /* Chronological order, so flag stacking is deterministic whatever order the
      payload arrived in. */
   MILES.filter(m => m.due).sort((p,q) => p.due - q.due).forEach(m =>
-    line(m.due, "goal" + (gc && m.id === gc.id ? " primary" : ""), `${m.name} · ${fmt(m.due)}`, true));
-  if (!MILES.length) line(goal(), "goal primary", `Quarter end · ${fmt(goal())}`, true);
+    line(m.due, "goal" + (gc && m.id === gc.id ? " primary" : ""), `${m.name} · ${fmtGoal(m.due)}`, true));
+  if (!MILES.length) line(goal(), "goal primary", `Quarter end · ${fmtGoal(goal())}`, true);
   line(today, "today", "Today");
 
   wireHover();
@@ -1038,14 +1049,18 @@ $("goalInput").addEventListener("change", e => {
   render();
 });
 /* A rail goal edits the same way: click it, pick a date, it stages like any
-   other card and saves with the same button. */
+   other card and saves with the same button. Cancel just backs out of the
+   inline editor without staging anything — Discard, at the bottom, is for
+   undoing edits already staged. */
 $("goalRail").addEventListener("click", e => {
+  if (e.target.closest(".goal-rail-cancel")) { renderGoalRail(goalCard()); return; }
   const li = e.target.closest(".goal-rail-item");
   if (!li || li.classList.contains("editing")) return;
   const m = MILES.find(x => x.id === li.dataset.id);
   if (!m) return;
   li.classList.add("editing");
-  li.innerHTML = `<input type="date" value="${ymd(m.due)}" aria-label="${esc(m.name)} date">`;
+  li.innerHTML = `<input type="date" value="${ymd(m.due)}" aria-label="${esc(m.name)} date">
+    <button type="button" class="goal-rail-cancel">Cancel</button>`;
   const input = li.querySelector("input");
   input.focus();
   input.addEventListener("change", () => {

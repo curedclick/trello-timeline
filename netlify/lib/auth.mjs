@@ -1,8 +1,11 @@
 // Shared by both the Node functions (netlify/functions/) and the Deno edge
 // gate (netlify/edge-functions/) — kept outside either directory so Netlify
-// doesn't try to register it as a function of its own. Uses only node:crypto,
-// which both runtimes support, so one implementation serves both.
+// doesn't try to register it as a function of its own. Uses only node:crypto
+// and node:buffer, which both runtimes support, so one implementation serves
+// both — but unlike Node, Deno doesn't put Buffer on the global scope, so it
+// has to be imported explicitly here.
 import { createHmac, createPublicKey, verify as cryptoVerify, timingSafeEqual } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 export const ALLOWED_DOMAIN = "curedclick.com";
 export const SESSION_COOKIE = "cc_session";
