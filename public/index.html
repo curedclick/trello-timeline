@@ -51,6 +51,23 @@ body{
 }
 .goal-auto{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
 .goal-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.goal-rail{
+  list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:5px;max-height:112px;overflow-y:auto;
+}
+.goal-rail-item{
+  display:flex;align-items:baseline;justify-content:flex-end;gap:9px;
+  font-size:11px;color:var(--ink2);cursor:pointer;
+}
+.goal-rail-item:hover{color:var(--ink)}
+.goal-rail-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.goal-rail-days{font-weight:600;color:var(--ink3);min-width:2.6em;text-align:right;flex:none}
+.goal-rail-item.tight .goal-rail-days{color:var(--red)}
+.goal-rail-item.editing{cursor:default}
+.goal-rail-item input[type=date]{
+  font:inherit;font-size:11px;border:1px solid var(--rule2);background:var(--panel);
+  border-radius:3px;padding:1px 4px;color:var(--ink);
+}
 
 /* ── vitals strip ─────────────────────────────────────────── */
 .vitals{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-top:0;background:var(--panel)}
@@ -257,6 +274,8 @@ body.dragging,body.dragging .mk{cursor:grabbing}
   :root{--labcol:170px}
   .row-when{display:none}
   .goal{text-align:left}
+  .goal-rail-item{justify-content:flex-start}
+  .goal-rail-name{max-width:52vw}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important}
@@ -279,6 +298,7 @@ body.dragging,body.dragging .mk{cursor:grabbing}
         <input type="date" id="goalInput" aria-label="Goal date">
         <span class="goal-auto" id="goalAuto" hidden>auto · add a Goals list in Trello</span>
       </div>
+      <ul class="goal-rail" id="goalRail" hidden></ul>
     </div>
   </header>
 
@@ -556,8 +576,26 @@ function renderVitals(){
   $("goalInput").hidden = !gc;
   $("goalAuto").hidden = !!gc;
   if (gc) $("goalInput").value = ymd(gc.due);
+  renderGoalRail(gc);
 }
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+/* Every other dated goal card, so the team can see the rest of the north
+   stars without the masthead countdown losing its single-number clarity. */
+function renderGoalRail(gc){
+  const rest = MILES.filter(m => m.due && (!gc || m.id !== gc.id)).sort((a,b) => a.due - b.due);
+  const el = $("goalRail");
+  el.hidden = !rest.length;
+  if (!rest.length) return;
+  el.innerHTML = rest.map(m => {
+    const left = days(today, m.due);
+    const label = left < 0 ? `${-left}d past` : left === 0 ? "today" : `${left}d`;
+    return `<li class="goal-rail-item${left <= 21 ? " tight" : ""}" data-id="${m.id}">
+      <span class="goal-rail-name" title="${esc(m.name)}">${esc(m.name)}</span>
+      <span class="goal-rail-days">${label}</span>
+    </li>`;
+  }).join("");
+}
 
 /* ── trace: weekly due-date load ───────────────────────────────
    Separate from render() so a drag can refresh the load curve without
@@ -995,6 +1033,22 @@ $("goalInput").addEventListener("change", e => {
   if (!gc || !e.target.value) return;
   gc.due = d0(new Date(e.target.value + "T12:00:00"));
   render();
+});
+/* A rail goal edits the same way: click it, pick a date, it stages like any
+   other card and saves with the same button. */
+$("goalRail").addEventListener("click", e => {
+  const li = e.target.closest(".goal-rail-item");
+  if (!li || li.classList.contains("editing")) return;
+  const m = MILES.find(x => x.id === li.dataset.id);
+  if (!m) return;
+  li.classList.add("editing");
+  li.innerHTML = `<input type="date" value="${ymd(m.due)}" aria-label="${esc(m.name)} date">`;
+  const input = li.querySelector("input");
+  input.focus();
+  input.addEventListener("change", () => {
+    if (input.value) m.due = d0(new Date(input.value + "T12:00:00"));
+    render();
+  });
 });
 $("refresh").addEventListener("click", async () => {
   if (dirtyCards().length &&
