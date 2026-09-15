@@ -8,8 +8,14 @@ No build step, no framework, no dependencies. Two files do the work:
 | File | Job |
 | --- | --- |
 | `public/index.html` | The whole UI, plus a baked-in snapshot of the board so the page renders before credentials are wired up |
+| `public/login.html` | The sign-in page — the one page reachable without a session |
 | `netlify/functions/board.mjs` | Server-side proxy that calls Trello with your key and token and returns a normalised card list |
 | `netlify/functions/card.mjs` | The only endpoint that writes: pushes staged due-date changes back to Trello |
+| `netlify/functions/auth.mjs` | Verifies a Google sign-in and issues a session cookie — see *Sign-in* below |
+| `netlify/functions/logout.mjs` | Clears the session cookie |
+| `netlify/functions/me.mjs` | Tells the page who's signed in, for the masthead display |
+| `netlify/lib/auth.mjs` | Session + Google token verification, shared by the functions above and the edge gate |
+| `netlify/edge-functions/gate.mjs` | Runs in front of every request and redirects to `/login.html` without a valid session |
 
 The layout matters. `public/` is the publish directory and `netlify/functions/`
 sits outside it, so the function is bundled as a function instead of being
@@ -20,11 +26,19 @@ repo-root/
 ├── netlify.toml
 ├── public/
 │   ├── index.html
-│   ├── favicon.ico
-│   └── snapshot.json
+│   ├── login.html
+│   └── favicon.ico
 └── netlify/
-    └── functions/
-        └── board.mjs
+    ├── functions/
+    │   ├── board.mjs
+    │   ├── card.mjs
+    │   ├── auth.mjs
+    │   ├── logout.mjs
+    │   └── me.mjs
+    ├── lib/
+    │   └── auth.mjs
+    └── edge-functions/
+        └── gate.mjs
 ```
 
 ## Why the function exists
@@ -42,18 +56,25 @@ ever receives card names, lists, labels and dates.
 1. Push this folder to a Git repo.
 2. In Netlify, **Add new site → Import an existing project**, pick the repo.
    Leave the build command empty. `netlify.toml` sets the publish directory.
-3. **Site configuration → Environment variables**, add three:
+3. **Site configuration → Environment variables**, add:
 
    | Key | Value |
    | --- | --- |
    | `TRELLO_KEY` | Your API key |
    | `TRELLO_TOKEN` | Your API token |
    | `TRELLO_BOARD_ID` | `AXZ7BiTv` |
-   | `CC_WRITE_KEY` | *Optional.* A passphrase required for saving date changes |
+   | `CC_WRITE_KEY` | *Optional.* A passphrase required for saving date changes, on top of sign-in |
+   | `GOOGLE_CLIENT_ID` | Your Google OAuth client ID — see *Sign-in* below |
+   | `SESSION_SECRET` | A long random string — see *Sign-in* below |
 
    Get the key and token from <https://trello.com/power-ups/admin> — create a
    Power-Up, open the **API key** tab, copy the key, then use the *Token* link
    beside it to generate a token.
+
+   **`GOOGLE_CLIENT_ID` and `SESSION_SECRET` need their scope to include
+   Functions** (Netlify's env var editor lets you pick scopes per variable) —
+   edge functions only see variables scoped that way, and the sign-in gate is
+   an edge function.
 4. Deploy. The status pill top-right should read **live from Trello**.
 
 The token needs **write** scope for drag-to-reschedule; read-only tokens will
@@ -75,30 +96,65 @@ changes; each card keeps its original time of day.
 If a save partially fails, the cards that saved are committed and the ones that
 failed stay pending with the error shown — press Save again to retry just those.
 
-**`CC_WRITE_KEY` matters here.** Leave it unset and anyone who can reach
-`/.netlify/functions/card` can rewrite your board's due dates with no login.
-Set it and the browser asks once for the passphrase, then remembers it. Reads
-are unaffected either way. See *Lock the site down* below — that advice now
-covers writes, not just card names.
+**`CC_WRITE_KEY` is optional, on top of sign-in** (see *Sign-in* below, which
+is what actually keeps the board off-limits to anyone outside
+`@curedclick.com`). Set it and the browser asks once for the extra
+passphrase, then remembers it — a second factor for anyone who'd rather not
+rely on the Google gate alone for writes specifically.
 
-## Lock the site down
+## Sign-in
 
-The chart exposes card names and your delivery dates, so do not leave it on a
-public URL. Either option is on the free tier:
+The chart exposes card names and delivery dates, so it's gated end to end:
+sign in with a Google account, and only `@curedclick.com` addresses are let
+in. Nothing about this depends on Netlify Identity (deprecated for new sites)
+— it's a small amount of first-party code, all in this repo:
 
-- **Netlify Identity** with invite-only registration, plus this in `netlify.toml`:
+1. **Every request is intercepted at the edge** by
+   `netlify/edge-functions/gate.mjs`, which runs before Netlify serves
+   anything — including `index.html` itself. Without a valid session cookie
+   it redirects to `/login.html`. This matters because `index.html` bakes a
+   snapshot of the board straight into its HTML for the instant-render
+   fallback; a check inside the page's own JavaScript couldn't stop someone
+   from just reading that snapshot out of the page source, so the gate has to
+   sit in front of the file, not inside it.
+2. **`login.html`** is the one page reachable without a session. It renders a
+   Sign In With Google button (Google Identity Services, loaded from
+   `accounts.google.com`) and posts the resulting credential to
+   `/.netlify/functions/auth`.
+3. **`auth.mjs`** verifies that credential is a genuine, unexpired Google ID
+   token (checking its signature against Google's public keys, issuer and
+   audience) and that the account's own email is a verified
+   `@curedclick.com` address — not just an email typed into a form. It then
+   issues its own signed session cookie, good for 30 days.
+4. **`board.mjs` and `card.mjs`** check that same session before doing
+   anything, as a second layer independent of the edge gate.
 
-  ```toml
-  [[headers]]
-    for = "/*"
-    [headers.values]
-      x-robots-tag = "noindex"
-  ```
+### Set it up
 
-- Or leave the site as a **Deploy Preview only** and never publish to production.
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
+   create an **OAuth client ID** of type **Web application**.
+   - **Authorized JavaScript origins:** your site's URL, e.g.
+     `https://cured-click-chart.netlify.app` (and `http://localhost:8888` too
+     if you test with `netlify dev`).
+   - No redirect URI is needed — this is a token flow, not a redirect flow.
+2. Copy the client ID (ends in `.apps.googleusercontent.com`) into **two**
+   places — they must match exactly:
+   - `GOOGLE_CLIENT_ID` in Netlify's site environment variables (scoped to
+     include Functions, per the table above).
+   - The `GOOGLE_CLIENT_ID` constant near the top of the `<script>` block in
+     `public/login.html`.
+3. Set `SESSION_SECRET` in Netlify's environment variables to a long random
+   string (e.g. `openssl rand -hex 32`), scoped to include Functions. This
+   signs the session cookie — anyone who has it could forge a session, so
+   treat it like a password and never commit it.
+4. Deploy, then open the site in a private window. It should redirect to
+   `/login.html`; signing in with a `@curedclick.com` Google account should
+   land you back on the chart, and any other Google account should be
+   rejected with an error on the login page.
 
-Password protection on a whole site is a paid feature, so Identity is the free
-route.
+Google Sign In needs neither a client secret nor a server-side OAuth dance —
+the ID-token flow only ever needs the client ID, which is not a secret and is
+safe to have in `login.html`'s source.
 
 ## Goals live on the board, not in the code
 

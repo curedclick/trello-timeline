@@ -1,17 +1,22 @@
 // Server-side proxy for writing card due dates back to Trello.
 // Reads live in board.mjs; this file is the only place that mutates anything.
 //
-// Set CC_WRITE_KEY in the site environment to require a shared passphrase on
-// every write. Leave it unset and writes are open to anyone who can reach the
-// endpoint — acceptable only while the site itself is not publicly reachable.
+// Gated on the @curedclick.com session the same way board.mjs is — see the
+// comment there. CC_WRITE_KEY is an optional extra passphrase on top of that.
+
+import { sessionEmail } from "../lib/auth.mjs";
 
 const MAX_EDITS = 60;
 const ID_RE = /^[0-9a-f]{24}$/i;
 
 export default async (req) => {
-  const { TRELLO_KEY, TRELLO_TOKEN, CC_WRITE_KEY } = process.env;
+  const { TRELLO_KEY, TRELLO_TOKEN, CC_WRITE_KEY, SESSION_SECRET } = process.env;
 
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
+
+  if (!SESSION_SECRET || !sessionEmail(req, SESSION_SECRET)) {
+    return json({ error: "Sign in with a curedclick.com Google account first." }, 401);
+  }
 
   if (!TRELLO_KEY || !TRELLO_TOKEN) {
     return json({ error: "Missing TRELLO_KEY or TRELLO_TOKEN in the site environment variables." }, 500);

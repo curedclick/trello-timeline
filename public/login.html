@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Cured Click</title>
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      --ink: #12181f;
+      --ink2: #3d4a57;
+      --ink3: #71808e;
+      --paper: #f6f8fa;
+      --panel: #fff;
+      --rule: #e2e8ee;
+      --red: #b3261e;
+      --red-soft: #fbe6e4;
+      --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      padding: 36px 30px;
+      border: 1px solid var(--rule);
+      background: var(--panel)
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      display: block;
+    }
+
+    h1 {
+      font-size: 22px;
+      letter-spacing: -.02em;
+      margin: 8px 0 10px;
+      font-weight: 600
+    }
+
+    p.note {
+      font-size: 13px;
+      color: var(--ink2);
+      margin: 0 0 24px;
+      line-height: 1.5
+    }
+
+    .btn-slot {
+      display: flex;
+      justify-content: center;
+      min-height: 40px
+    }
+
+    .err {
+      margin: 18px 0 0;
+      padding: 8px 10px;
+      border: 1px solid var(--red);
+      background: var(--red-soft);
+      color: var(--red);
+      font-size: 12.5px;
+      text-align: left;
+    }
+
+    [hidden] {
+      display: none !important
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <span class="eyebrow">Cured Click · Delivery chart</span>
+    <h1>Sign in to continue</h1>
+    <p class="note">Access is limited to @curedclick.com Google accounts.</p>
+    <div class="btn-slot" id="googleBtn"></div>
+    <p class="err" id="err" hidden></p>
+  </div>
+
+  <script>
+    /* Fill in with the same OAuth client ID set as GOOGLE_CLIENT_ID in the
+       Netlify site's environment variables — see README's "Sign-in" section. */
+    const GOOGLE_CLIENT_ID = "348106171562-927h0nl70cmcmgtpu3qrqodnpoddce2e.apps.googleusercontent.com";
+
+    const $ = id => document.getElementById(id);
+
+    async function onCredential(resp) {
+      $("err").hidden = true;
+      try {
+        const r = await fetch("/.netlify/functions/auth", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ credential: resp.credential })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "Sign-in failed.");
+        location.href = "/";
+      } catch (e) {
+        $("err").textContent = e.message;
+        $("err").hidden = false;
+      }
+    }
+
+    function initGoogle() {
+      if (!window.google?.accounts?.id) { setTimeout(initGoogle, 150); return; }
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onCredential });
+      google.accounts.id.renderButton($("googleBtn"), { theme: "outline", size: "large", shape: "pill" });
+    }
+    initGoogle();
+  </script>
+</body>
+
+</html>

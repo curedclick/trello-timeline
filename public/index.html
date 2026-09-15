@@ -50,17 +50,17 @@ body{
   border-radius:3px;padding:2px 5px;color:var(--ink);
 }
 .goal-auto{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
-.goal-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.goal-label{white-space:normal;max-width:46vw}
 .goal-rail{
   list-style:none;margin:10px 0 0;padding:8px 0 0;border-top:1px solid var(--rule);
   display:flex;flex-direction:column;gap:5px;max-height:112px;overflow-y:auto;
 }
 .goal-rail-item{
-  display:flex;align-items:baseline;justify-content:flex-end;gap:9px;
+  display:flex;align-items:flex-start;justify-content:flex-end;gap:9px;
   font-size:11px;color:var(--ink2);cursor:pointer;
 }
 .goal-rail-item:hover{color:var(--ink)}
-.goal-rail-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.goal-rail-name{white-space:normal;max-width:240px}
 .goal-rail-days{font-weight:600;color:var(--ink3);min-width:2.6em;text-align:right;flex:none}
 .goal-rail-item.tight .goal-rail-days{color:var(--red)}
 .goal-rail-item.editing{cursor:default}
@@ -200,7 +200,6 @@ body.dragging,body.dragging .mk{cursor:grabbing}
 .flag{
   position:absolute;top:-25px;font-family:var(--mono);font-size:9.5px;font-weight:600;
   letter-spacing:.1em;text-transform:uppercase;color:#fff;padding:2px 6px;white-space:nowrap;
-  max-width:230px;overflow:hidden;text-overflow:ellipsis;
 }
 .vline.today .flag{background:var(--red)}
 .vline.goal{border-left:1px dashed var(--rule2)}
@@ -270,6 +269,8 @@ body.dragging,body.dragging .mk{cursor:grabbing}
 .foot{margin-top:18px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink3)}
 .foot a{color:var(--teal-ink)}
 
+#whoami{color:var(--ink2)}
+
 @media (max-width:760px){
   :root{--labcol:170px}
   .row-when{display:none}
@@ -321,6 +322,8 @@ body.dragging,body.dragging .mk{cursor:grabbing}
     <div class="status">
       <span class="dot" id="dot"></span><span id="src">loading</span>
       <button id="refresh" type="button">Refresh</button>
+      <span id="whoami" hidden></span>
+      <button id="signOut" type="button" hidden>Sign out</button>
     </div>
   </div>
 
@@ -1057,6 +1060,21 @@ $("refresh").addEventListener("click", async () => {
   try { await loadLive(); } catch(e) { loadSnapshot(); }
   paintStatus(); render(); renderUndated();
 });
+
+/* Access itself is enforced at the edge (see netlify/edge-functions/gate.mjs);
+   this is just the "who am I" display and the sign-out button. */
+$("signOut").addEventListener("click", async () => {
+  try { await fetch("/.netlify/functions/logout", { method: "POST", credentials: "same-origin" }); }
+  finally { location.href = "/login.html"; }
+});
+fetch("/.netlify/functions/me", { credentials: "same-origin", cache: "no-store" })
+  .then(r => r.ok ? r.json() : null)
+  .then(j => {
+    if (!j?.email) return;
+    $("whoami").textContent = j.email;
+    $("whoami").hidden = false;
+    $("signOut").hidden = false;
+  });
 
 boot().then(renderUndated);
 </script>

@@ -1,12 +1,21 @@
 // Server-side proxy for the Trello REST API.
 // The key and token stay in Netlify environment variables and are never sent
 // to the browser. The browser only ever sees the normalised card list below.
+//
+// The edge gate (netlify/edge-functions/gate.mjs) already blocks this path for
+// anyone without a session; sessionEmail is checked again here too, so this
+// endpoint is still safe on its own if the edge gate is ever misconfigured.
+import { sessionEmail } from "../lib/auth.mjs";
 
 // cardRole must be requested explicitly or the separator filter below is a no-op.
 const FIELDS = "name,url,due,start,idList,dueComplete,closed,labels,cardRole";
 
-export default async () => {
-  const { TRELLO_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID } = process.env;
+export default async (req) => {
+  const { TRELLO_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID, SESSION_SECRET } = process.env;
+
+  if (!SESSION_SECRET || !sessionEmail(req, SESSION_SECRET)) {
+    return json({ error: "Sign in with a curedclick.com Google account first." }, 401);
+  }
 
   if (!TRELLO_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_ID) {
     return json(
